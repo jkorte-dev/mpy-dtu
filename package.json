@@ -1,0 +1,55 @@
+{
+  "urls": [
+    [
+      "hoymiles/__init__.py",
+      "http://localhost:8000/hoymiles/__init__.py"
+    ],
+    [
+      "hoymiles/uoutputs.py",
+      "http://localhost:8000/hoymiles/uoutputs.py"
+    ],
+    [
+      "hoymiles/uwebserver.py",
+      "http://localhost:8000/hoymiles/uwebserver.py"
+    ],
+    [
+      "hoymiles/websunsethandler.py",
+      "http://localhost:8000/hoymiles/websunsethandler.py"
+    ],
+    [
+      "hoymiles/decoders/__init__.py",
+      "http://localhost:8000/hoymiles/decoders/__init__.py"
+    ],
+    [
+      "hoymiles/decoders/ucrcmod.py",
+      "http://localhost:8000/hoymiles/decoders/ucrcmod.py"
+    ],
+    [
+      "hoymiles/nrf24mpy/__init__.py",
+      "http://localhost:8000/hoymiles/nrf24mpy/__init__.py"
+    ],
+    [
+      "hoymiles/nrf24mpy/nrf24_mp.py",
+      "http://localhost:8000/hoymiles/nrf24mpy/nrf24_mp.py"
+    ]
+  ],
+  "deps": [
+    [
+      "datetime",
+      "latest"
+    ],
+    [
+      "logging",
+      "latest"
+    ],
+    [
+      "umqtt.robust",
+      "latest"
+    ],
+    [
+      "ssd1306",
+      "latest"
+    ]
+  ],
+  "version": "0.1.0"
+}
