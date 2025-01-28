@@ -4,7 +4,7 @@ from errno import ETIMEDOUT
 from machine import Pin, SPI
 from .nrf24_mp import RF24
 
-from hoymiles import HOYMILES_DEBUG_LOGGING
+from hoymiles import HOYMILES_DEBUG_LOGGING, hexify_payload
 
 # https://github.com/nRF24/RF24/blob/3bbcce8d18b32be0b350978472b53830e3ad1285/nRF24L01.h
 
@@ -49,7 +49,7 @@ class HoymilesNRF:
         if HOYMILES_DEBUG_LOGGING:
             # c_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             # logging.debug(f'{c_datetime} Transmit {len(packet)} bytes channel {self.tx_channel}: {self.hexify_payload(packet)}')
-            print(f'Transmit {len(packet)} bytes channel {self.tx_channel}: {self.hexify_payload(packet)}')
+            print(f'Transmit {len(packet)} bytes channel {self.tx_channel}: {hexify_payload(packet)}')
 
         inv_esb_addr = b'\01' + packet[1:5]
         dtu_esb_addr = b'\01' + packet[5:9]
@@ -126,7 +126,7 @@ class HoymilesNRF:
                     self.radio.channel = self.rx_channel   # self.radio.setChannel(self.rx_channel)
                     self.radio.listen = True               # self.radio.startListening()
 
-            time.sleep(0.005)
+            time.sleep(0.005)  # todo use async
 
         if not received_sth:
             raise OSError(ETIMEDOUT)  # was TimeoutError
@@ -154,7 +154,3 @@ class HoymilesNRF:
 
     def __del__(self):
         self.radio.power = False  # self.radio.powerDown()
-
-    @staticmethod
-    def hexify_payload(byte_var):
-        return ' '.join([f"{b:02x}" for b in byte_var])

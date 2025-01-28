@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from os import environ
 
-HOYMILES_DEBUG_LOGGING=False
+from hoymiles import HOYMILES_DEBUG_LOGGING, hexify_payload
 
 try:
     # OSI Layer 2 driver for nRF24L01 on Arduino & Raspberry Pi/Linux Devices
@@ -70,7 +70,7 @@ class HoymilesNRF:
 
         if HOYMILES_DEBUG_LOGGING:
             c_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-            logging.debug(f'{c_datetime} Transmit {len(packet)} bytes channel {self.tx_channel}: {self.hexify_payload(packet)}')
+            logging.debug(f'{c_datetime} Transmit {len(packet)} bytes channel {self.tx_channel}: {hexify_payload(packet)}')
 
         if not txpower:
             txpower = self.txpower
@@ -208,6 +208,3 @@ class HoymilesNRF:
 
     def __del__(self):
         self.radio.powerDown()
-
-    def hexify_payload(self, byte_var):
-        return ' '.join([f"{b:02x}" for b in byte_var])

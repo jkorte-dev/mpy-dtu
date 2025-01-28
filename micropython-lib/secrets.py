@@ -1,5 +1,5 @@
 secrets = {
-'ssid': 'SSID',
-'password': 'PASSWORD',
+    'ssid': 'SSID',
+    'password': 'PASSWORD',
 }
 

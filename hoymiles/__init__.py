@@ -306,20 +306,6 @@ class InverterPacketFragment:
         return f"Received {size} bytes{channel}: {hexify_payload(self.frame)}"
 
 
-def frame_payload(payload):
-    """
-    Prepare payload for transmission, append Modbus CRC16
-
-    :param bytes payload: payload to be prepared
-    :return: payload + crc
-    :rtype: bytes
-    """
-    payload_crc = f_crc_m(payload)
-    payload = payload + struct.pack('>H', payload_crc)
-
-    return payload
-
-
 def compose_esb_fragment(fragment, seq=b'\x80', src=99999999, dst=1, **params):
     """
     Build standart ESB request fragment
@@ -365,26 +351,29 @@ def compose_esb_packet(packet, mtu=17, **params):
         yield fragment
 
 
-def compose_send_time_payload(cmdId, alarm_id=0):
+def compose_send_time_payload(cmd_id, alarm_id=0):
     """
     Build set time request packet
 
-    :param cmd to request
-    :type cmd: uint8
+    :param alarm_id:
+    :param cmd_id to request
+    :type cmd_id: uint8
     :return: payload
     :rtype: bytes
     """
     timestamp = int(time.time())
 
     # indices from esp8266 hmRadio.h / sendTimePacket()
-    payload = struct.pack('>B', cmdId)                # 10
+    payload = struct.pack('>B', cmd_id)                # 10
     payload = payload + b'\x00'                       # 11
     payload = payload + struct.pack('>L', timestamp)  # 12..15 big-endian: msb at low address
     payload = payload + b'\x00\x00'                   # 16..17
     payload = payload + struct.pack('>H', alarm_id)   # 18..19
     payload = payload + b'\x00\x00\x00\x00'           # 20..23
 
-    return frame_payload(payload)
+    # append Modbus CRC16
+    payload = payload + struct.pack('>H', f_crc_m(payload))
+    return payload
 
 
 class InverterTransaction:
@@ -590,7 +579,6 @@ class InverterTransaction:
         :return: log line of payload for transmission
         :rtype: str
         """
-        size = len(self.request)
         return f'Transmit | {hexify_payload(self.request)}'
 
 
@@ -627,7 +615,7 @@ class InfoCommands:
 
 
 class HoymilesDTU:
-    def __init__(self, ahoy_cfg, mqtt_clt=None, event_msg_idx=None, cmd_queue=None, status_handler=None, info_handler=None):
+    def __init__(self, ahoy_cfg, mqtt_clt=None, event_msg_idx=None, cmd_queue=None, status_handler=None, info_handler=None, event_handler=None):
         if cmd_queue is None:
             cmd_queue = {}
         if event_msg_idx is None:
@@ -638,14 +626,16 @@ class HoymilesDTU:
         self.command_queue = cmd_queue
         self.status_handler = status_handler
         self.info_handler = info_handler
+        self.event_handler = event_handler
         self.hmradio = None
-        if sys.platform == 'linux':
-            from .nrf24 import HoymilesNRF
-        else:
-            from .nrf24mpy import HoymilesNRF
-            print("importing HoymilesNRF micropython version")
-        for radio_config in ahoy_cfg.get('nrf', [{}]):
-            self.hmradio = HoymilesNRF(**radio_config)  # hmm wird jedesmal ueberschrieben
+        if ahoy_cfg.get('nrf') is not None:
+            if sys.platform == 'linux':
+                from .nrf24 import HoymilesNRF
+            else:
+                from .nrf24mpy import HoymilesNRF
+                print("importing HoymilesNRF micropython version")
+            for radio_config in ahoy_cfg.get('nrf', [{}]):
+                self.hmradio = HoymilesNRF(**radio_config)  # hmm wird jedesmal ueberschrieben
 
         self.inverters = [
             inverter for inverter in ahoy_cfg.get('inverters', [])
@@ -663,7 +653,7 @@ class HoymilesDTU:
         elif sunset_cfg and not sys.platform == 'linux':
             # float precision is not sufficient to cal sunset/sunrise we use web api instead
             from hoymiles.websunsethandler import SunsetHandler
-            self.sunset = SunsetHandler(sunset_cfg)
+            self.sunset = SunsetHandler(sunset_cfg, self.event_handler)
 
         self.loop_interval = ahoy_cfg.get('interval', 2)
         self.transmit_retries = ahoy_cfg.get('transmit_retries', 5)
@@ -691,7 +681,12 @@ class HoymilesDTU:
                         sys.exit(999)
                     if HOYMILES_DEBUG_LOGGING:
                         logging.info(f'Poll inverter name={inverter["name"]} ser={inverter["serial"]}')
-                    await self.poll_inverter(inverter, do_init)
+                    try:
+                        if self.event_handler is not None:
+                            self.event_handler({'event_type': 'inverter.polling'})
+                        await asyncio.wait_for(self.poll_inverter(inverter, do_init), timeout=self.transmit_retries+2)
+                    except asyncio.TimeoutError as e:
+                        print("t", end="")
                 do_init = False
 
                 if self.loop_interval > 0:
@@ -703,7 +698,7 @@ class HoymilesDTU:
         except Exception as e:
             logging.error('Exception catched: %s' % e)
             #logging.fatal(traceback.print_exc())
-            raise
+            raise e
 
     async def poll_inverter(self, inverter, do_init):
         """
@@ -715,7 +710,8 @@ class HoymilesDTU:
 
         # Queue at least status data request
         inv_str = str(inverter_ser)
-        print(f"polling inverter {inverter_name} ...")
+        # print(f"polling inverter {inverter_name}", end="")
+        print("p", end="")  # todo remove debug
         if do_init:
             if not self.command_queue.get(inv_str):
                 self.command_queue[inv_str] = []       # initialize map for inverter
@@ -726,7 +722,8 @@ class HoymilesDTU:
 
         # Put all queued commands for current inverter on air
         while len(self.command_queue[inv_str]) > 0:
-            payload = self.command_queue[inv_str].pop(0)  ## Sub.Cmd
+            payload = self.command_queue[inv_str].pop(0)  # Sub.Cmd
+            print("q", end="")  # todo remove debug
 
             # Send payload {ttl}-times until we get at least one reponse
             payload_ttl = self.transmit_retries
@@ -754,20 +751,22 @@ class HoymilesDTU:
                         pass
                     await asyncio.sleep(0.001)
                 await asyncio.sleep(0.1)
+                print(".", end="")  # todo remove debug
 
             # Handle the response data if any
             if response:
+                print("")  # todo remove debug
                 if HOYMILES_TRANSACTION_LOGGING:
                     logging.debug(f'Payload: ' + hexify_payload(response))
 
                 # prepare decoder object
                 decoder = ResponseDecoder(response,
-                                                   request=com.request,
-                                                   inverter_ser=inverter_ser,
-                                                   inverter_name=inverter_name,
-                                                   dtu_ser=self.dtu_ser,
-                                                   strings=inverter_strings
-                                                   )
+                                          request=com.request,
+                                          inverter_ser=inverter_ser,
+                                          inverter_name=inverter_name,
+                                          dtu_ser=self.dtu_ser,
+                                          strings=inverter_strings
+                                          )
 
                 # get decoder object
                 result = decoder.decode()
@@ -779,14 +778,21 @@ class HoymilesDTU:
 
                     data = result.to_dict()
                     if data is not None and 'event_count' in data:
-                        if self.event_message_index[inv_str] < data['event_count']:
-                            self.event_message_index[inv_str] = data['event_count']
+                        event_count = data['event_count']
+                        if self.event_message_index[inv_str] < event_count:
+                            self.event_message_index[inv_str] = event_count
                             self.command_queue[inv_str].append(compose_send_time_payload(InfoCommands.AlarmData,
-                                                                                             alarm_id=self.event_message_index[
-                                                                                                 inv_str]))
+                                                                                         alarm_id=event_count))
 
                     if self.status_handler:
-                        self.status_handler(result, inverter)
+                        # is generator function (coroutine)?
+                        if isinstance(self.status_handler, type((lambda: (yield)))):
+                            try:
+                                await asyncio.wait_for(self.status_handler(result, inverter), timeout=2)
+                            except asyncio.TimeoutError:
+                                pass
+                        else:
+                            self.status_handler(result, inverter)
 
                 # check decoder object for output
                 if isinstance(result, decoders.HardwareInfoResponse):

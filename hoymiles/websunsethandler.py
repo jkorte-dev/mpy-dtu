@@ -6,15 +6,17 @@ import asyncio
 
 class SunsetHandler:
 
-    def __init__(self, sunset_config, mqtt_client=None):
+    def __init__(self, sunset_config, event_handler=None):
         self.suntimes_sunset = None
         self.suntimes_sunrise = None
+        self.event_handler = event_handler
 
-        if sunset_config and not sunset_config.get('disabled', True):
+        if sunset_config and not sunset_config.get('disabled', False):
             # (49.453872, 11.077298)
             self.latitude = sunset_config.get('latitude')
             self.longitude = sunset_config.get('longitude')
             self.altitude = sunset_config.get('altitude')
+
             self._calc_sunrise_sunset()
 
             print(f'gmtime()={time.gmtime()[0:5]} UTC, localtime(){time.localtime()[3:5]} lat={self.latitude}, lon={self.longitude}')
@@ -43,8 +45,10 @@ class SunsetHandler:
         if time_to_sleep > 0:
             print(f'Next sunrise is at {self.suntimes_sunrise//60:02d}:{self.suntimes_sunrise%60:02d} UTC, next sunset is at {self.suntimes_sunset//60:02d}:{self.suntimes_sunset%60:02d} UTC, sleeping for {time_to_sleep} seconds.')
             print(f'Wake up in {time_to_sleep//3600:02d} hours {(time_to_sleep//60)%60:02d} min.')
+            self._send_suntimes_event('sleeping', time_to_sleep)
             await asyncio.sleep(time_to_sleep)
             logging.info(f'Woke up...')
+            self._send_suntimes_event('wakeup', time_to_sleep)
 
     def _calc_sunrise_sunset(self, tomorrow=False):
         # resp = requests.get('https://api.sunrisesunset.io/json?lat=49.453872&lng=11.077298&timezone=UTC')
@@ -62,6 +66,11 @@ class SunsetHandler:
             self.suntimes_sunset = int(ss_h)*60 + int(ss_m)
         except Exception as e:
             logging.exception(e)
+
+    def _send_suntimes_event(self, message, sleeping_time):
+        if self.event_handler is not None:
+            self.event_handler({'event_type': f'suntimes.{message}', 'sleeping_time': sleeping_time})
+
 
 
 

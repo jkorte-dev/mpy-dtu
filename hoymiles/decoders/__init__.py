@@ -87,7 +87,6 @@ class Response:
         strings = params.get('strings', None)
         self.inv_strings = strings
 
-        #self.time_rx = params.get('time_rx', datetime.now())  # todo so zum beispiel sollte ok sein?
         if isinstance(params.get('time_rx', None), datetime):
             self.time_rx = params['time_rx']
         else:
