@@ -24,7 +24,9 @@ class OutputPluginFactory:
 class DisplayPlugin(OutputPluginFactory):
     display = None
     display_width = 128  # default
-    font_size = 10  # fontsize fix 8 + 2 pixel
+    font_size = 8     # fontsize fix 8 + 2 pixel
+    symbol_size = 10  # symbols fix 10x10 pixel
+    last_ip = None
 
     # symbols 10x10 created with https://www.piskelapp.com/ converted png with gimp to 1 bit b/w pbm files
     symbols = {'sum': bytearray(b'\x00\x00\x7f\x80`\x800\x00\x18\x00\x0c\x00\x18\x000\x00`\x80\x7f\x80'),
@@ -82,13 +84,15 @@ class DisplayPlugin(OutputPluginFactory):
             fscale = 2
             self.display = SSD1306_I2C(display_width, display_height, i2c)
             self.display.fill(0)
-            self.display.text_scaled(splash, ((display_width - len(splash)*(self.font_size-2)) // 2), (display_height // 2) - self.font_size, fscale)
+            self.display.text_scaled(splash, ((display_width - len(splash)*self.font_size) // 2), (display_height // 2) - self.font_size, fscale)
             self.display.show()
 
         except Exception as e:
             print("display not initialized", e)
 
     def store_status(self, response, **params):
+        if isinstance(response, HardwareInfoResponse):
+            return
         if not isinstance(response, StatusResponse):
             raise ValueError('Data needs to be instance of StatusResponse')
 
@@ -98,7 +102,7 @@ class DisplayPlugin(OutputPluginFactory):
             print("Invalid response!")
             return
 
-        if self.display is not None:
+        if self.display:
             self.display.fill(0)
             self.display.show()
 
@@ -110,7 +114,7 @@ class DisplayPlugin(OutputPluginFactory):
         # self.show_value(0, f"     {phase_sum_power} W")
         self.show_value(0, f"{phase_sum_power:0.0f}W", center=True, large=True)
         self.show_symbol(0, 'level')
-        self.show_symbol(0, 'wifi', x=self.display_width-self.font_size)
+        self.show_symbol(0, 'wifi', x=self.display_width-self.symbol_size)
         if data.get('yield_today') is not None:
             yield_today = data['yield_today']
             self.show_value(1, f"{yield_today} Wh", x=40)  # 16+3*8
@@ -123,6 +127,8 @@ class DisplayPlugin(OutputPluginFactory):
             timestamp = data['time']  # datetime.isoformat()
             Y, M, D, h, m, s, us, tz, fold = timestamp.tuple()
             self.show_value(3, f' {D:02d}.{M:02d} {h:02d}:{m:02d}:{s:02d}')
+        if self.last_ip:
+            self.show_value(4, self.last_ip, center=True)
 
     def show_value(self, slot, value, x=None, y=None, center=False, large=False):
         if self.display is None:
@@ -131,7 +137,7 @@ class DisplayPlugin(OutputPluginFactory):
         x, y = self._slot_pos(slot, x, y, length=len(value) if center else None)
         if large:
             _scale = 2
-            self.display.text_scaled(value, x - _scale*(self.font_size-2), y, _scale)
+            self.display.text_scaled(value, x - _scale*self.font_size, y, _scale)
         else:
             self.display.fill_rect(x, y, self.display.width, self.font_size, 0)  # clear data on display
             self.display.text(value, x, y, 1)
@@ -143,12 +149,12 @@ class DisplayPlugin(OutputPluginFactory):
         data = self.symbols.get(sym)
         if data:
             x, y = self._slot_pos(slot, x, y)
-            self.display.blit(framebuf.FrameBuffer(data, self.font_size, self.font_size, framebuf.MONO_HLSB), x, y)
+            self.display.blit(framebuf.FrameBuffer(data, self.symbol_size, self.symbol_size, framebuf.MONO_HLSB), x, y)
             self.display.show()
 
     def _slot_pos(self, slot, x=None, y=None, length=None):
-        x = x if x else ((self.display.width - length*(self.font_size-2)) // 2) if length else 0
-        y = y if y else slot * (self.display.height // 4) + 8 if slot else 0
+        x = x if x else ((self.display.width - length*self.font_size) // 2) if length else 0
+        y = y if y else slot * (self.display.height // 5) + 8 if slot else 0
         return x, y
 
     def on_event(self, event):
@@ -158,7 +164,9 @@ class DisplayPlugin(OutputPluginFactory):
         elif event.get('event_type', "") == "suntimes.wakeup":
             self.show_symbol(slot=1, sym='blank')
         elif event.get('event_type', "") == "wifi.up":
-            self.show_symbol(slot=0, sym='wifi', x=self.display_width-self.font_size)
+            self.show_symbol(slot=0, sym='wifi', x=self.display_width-self.symbol_size)
+            self.show_value(4, event.get('ip', ""), center=True)
+            self.last_ip = event.get('ip', "")
 
 
 class MqttPlugin(OutputPluginFactory):
@@ -256,20 +264,27 @@ class MqttPlugin(OutputPluginFactory):
                 self._publish(f'{topic}/total/Efficiency', data['efficiency'])
 
         elif isinstance(response, HardwareInfoResponse):
-            if data["FW_ver_maj"] is not None and data["FW_ver_min"] is not None and data["FW_ver_pat"] is not None:
-                self._publish(f'{topic}/Firmware/Version',
-                              f'{data["FW_ver_maj"]}.{data["FW_ver_min"]}.{data["FW_ver_pat"]}')
+            self._publish(f'{topic}/firmware',
+                          f'v{data.get("FW_ver_maj","")}.{data.get("FW_ver_min","")}.{data.get("FW_ver_pat", "")}' +
+                          f'@{data.get("FW_build_yy","")}.{data.get("FW_build_mm", "")}.{data.get("FW_build_dd", "")}T{data.get("FW_build_HH","")}:{data.get("FW_build_MM","")}')
 
-            if data["FW_build_dd"] is not None and data["FW_build_mm"] is not None and data[
-                "FW_build_yy"] is not None and data["FW_build_HH"] is not None and data["FW_build_MM"] is not None:
-                self._publish(f'{topic}/Firmware/Build_at',
-                              f'{data["FW_build_dd"]}/{data["FW_build_mm"]}/{data["FW_build_yy"]}T{data["FW_build_HH"]}:{data["FW_build_MM"]}')
-
-            if data["FW_HW_ID"] is not None:
-                self._publish(f'{topic}/Firmware/HWPartId', f'{data["FW_HW_ID"]}')
+            if data.get("FW_HW_ID") is not None:
+                self._publish(f'{topic}/hardware', f'{data["FW_HW_ID"]}')
 
         else:
             raise ValueError('Data needs to be instance of StatusResponse or a instance of HardwareInfoResponse')
+
+    def on_event(self, event, topic=None):
+        if not event or not topic:
+            return
+        event_type = event.get('event_type', "")
+        if "suntimes." in event_type:
+            self._publish(f'{topic}/sunset', event.get('sunset', ""))
+            self._publish(f'{topic}/sunrise', event.get('sunrise', ""))
+            if event_type == 'suntimes.sleeping':
+                self._publish(f'{topic}/status', 'sleeping')
+            elif event_type == "suntimes.wakeup":
+                self._publish(f'{topic}/status', 'awake')
 
     def _publish(self, topic, value):
         if self.dry_run or self.client is None:
@@ -318,18 +333,27 @@ class BlinkPlugin(OutputPluginFactory):
 
 class WebPlugin(OutputPluginFactory):
     last_response = {'time': datetime.now(timezone.utc), 'inverter_name': 'unkown', 'phases': [{}], 'strings': [{}]}
+    last_event = {}
 
     def __init__(self, config, **params):
         super().__init__(**params)
+        if config:
+            self.last_response['inverter_name'] = config.get('name', 'unkown')
+            self.last_response['strings'] = [{'name': e.get('s_name', "panel")} for e in config.get('strings', [])]
 
     def store_status(self, response, **params):
         self.last_response = response.to_dict()
 
     def get_data(self):
         _last = self.last_response
+        _last['event'] = self.last_event
         _timestamp = _last['time']
         if isinstance(_timestamp, datetime):
             _new_ts = _timestamp.isoformat().split('.')[0]
             _last['time'] = _new_ts
         return f"{_last}".replace('\'', '\"')
+
+    def on_event(self, event):
+        if 'suntimes' in event.get('event_type', ""):
+            self.last_event = event
 

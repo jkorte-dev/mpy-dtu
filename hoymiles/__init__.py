@@ -627,6 +627,8 @@ class HoymilesDTU:
         self.status_handler = status_handler
         self.info_handler = info_handler
         self.event_handler = event_handler
+        if not event_handler:
+            self.event_handler = lambda event: None
         self.hmradio = None
         if ahoy_cfg.get('nrf') is not None:
             if sys.platform == 'linux':
@@ -682,11 +684,11 @@ class HoymilesDTU:
                     if HOYMILES_DEBUG_LOGGING:
                         logging.info(f'Poll inverter name={inverter["name"]} ser={inverter["serial"]}')
                     try:
-                        if self.event_handler is not None:
-                            self.event_handler({'event_type': 'inverter.polling'})
-                        await asyncio.wait_for(self.poll_inverter(inverter, do_init), timeout=self.transmit_retries+2)
+                        self.event_handler({'event_type': 'inverter.polling'})
+                        await asyncio.wait_for(self.poll_inverter(inverter, do_init), timeout=self.transmit_retries+5)
                     except asyncio.TimeoutError as e:
                         print("t", end="")
+                        # self.event_handler({'event_type': 'inverter.timeout'})
                 do_init = False
 
                 if self.loop_interval > 0:

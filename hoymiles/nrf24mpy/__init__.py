@@ -2,14 +2,15 @@ import time
 from errno import ETIMEDOUT
 
 from machine import Pin, SPI
-from .nrf24_mp import RF24
+
+try:
+    from nrf24 import RF24
+except ImportError:
+    from .nrf24_mp import RF24
 
 from hoymiles import HOYMILES_DEBUG_LOGGING, hexify_payload
 
 # https://github.com/nRF24/RF24/blob/3bbcce8d18b32be0b350978472b53830e3ad1285/nRF24L01.h
-
-#  mpremote mip install logging
-#  mpremote mip install datetime
 
 
 class HoymilesNRF:
@@ -36,19 +37,12 @@ class HoymilesNRF:
         ce = Pin(radio_config.get('ce', 16))
 
         print("NRF spi config", spi, csn, ce)
-
-        self.radio = RF24(
-            spi,
-            csn,
-            ce
-        )
+        self.radio = RF24(spi, csn, ce)
 
     def transmit(self, packet, txpower=None):
         self.next_tx_channel()
 
         if HOYMILES_DEBUG_LOGGING:
-            # c_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
-            # logging.debug(f'{c_datetime} Transmit {len(packet)} bytes channel {self.tx_channel}: {self.hexify_payload(packet)}')
             print(f'Transmit {len(packet)} bytes channel {self.tx_channel}: {hexify_payload(packet)}')
 
         inv_esb_addr = b'\01' + packet[1:5]
@@ -65,8 +59,9 @@ class HoymilesNRF:
         #* 250 us. The minimum of 0 means 250 us, and the maximum of 15 means
         #* 4000 us. The default value of 5 means 1500us (5 * 250 + 250).
         #* @param count How many retries before giving up. The default/maximum is 15.
-        self.radio.ard = 1000                # retry delay 3+250 + 250 = 1000 µs
+        self.radio.ard = 1000                # retry delay 3 * 250 + 250 = 1000 µs
         self.radio.arc = 15                  # retry count 15
+        # self.radio.set_auto_retries(3, 15) # self.radio.setRetries(3, 15)
         self.radio.crc = 2                   # self.radio.setCRCLength(RF24_CRC_16)  # length in bytes: 0, 1 or 2
         self.radio.dynamic_payloads = True   # self.radio.enableDynamicPayloads()
 

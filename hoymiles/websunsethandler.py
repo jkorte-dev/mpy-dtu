@@ -43,12 +43,14 @@ class SunsetHandler:
             time_to_sleep = int(self.suntimes_sunrise - now) * 60
 
         if time_to_sleep > 0:
-            print(f'Next sunrise is at {self.suntimes_sunrise//60:02d}:{self.suntimes_sunrise%60:02d} UTC, next sunset is at {self.suntimes_sunset//60:02d}:{self.suntimes_sunset%60:02d} UTC, sleeping for {time_to_sleep} seconds.')
+            sunset_time = f'{self.suntimes_sunset//60:02d}:{self.suntimes_sunset%60:02d}'
+            sunrise_time = f'{self.suntimes_sunrise//60:02d}:{self.suntimes_sunrise%60:02d}'
+            print(f'Next sunrise is at {sunrise_time} UTC, next sunset is at {sunset_time} UTC, sleeping for {time_to_sleep} seconds.')
             print(f'Wake up in {time_to_sleep//3600:02d} hours {(time_to_sleep//60)%60:02d} min.')
-            self._send_suntimes_event('sleeping', time_to_sleep)
+            self._send_suntimes_event('sleeping', time_to_sleep, sunrise_time, sunset_time)
             await asyncio.sleep(time_to_sleep)
             logging.info(f'Woke up...')
-            self._send_suntimes_event('wakeup', time_to_sleep)
+            self._send_suntimes_event('wakeup', time_to_sleep, sunrise_time, sunset_time)
 
     def _calc_sunrise_sunset(self, tomorrow=False):
         # resp = requests.get('https://api.sunrisesunset.io/json?lat=49.453872&lng=11.077298&timezone=UTC')
@@ -60,6 +62,7 @@ class SunsetHandler:
                 url += '&date=tomorrow'
             resp = requests.get(url)
             data = resp.json().get('results')
+            resp.close()
             sr_h, sr_m = data.get('sunrise').split(':')[:2]
             self.suntimes_sunrise = int(sr_h)*60 + int(sr_m)
             ss_h, ss_m = data.get('sunset').split(':')[:2]
@@ -67,9 +70,9 @@ class SunsetHandler:
         except Exception as e:
             logging.exception(e)
 
-    def _send_suntimes_event(self, message, sleeping_time):
+    def _send_suntimes_event(self, message, sleeping_time, sunrise_time, sunset_time):
         if self.event_handler is not None:
-            self.event_handler({'event_type': f'suntimes.{message}', 'sleeping_time': sleeping_time})
+            self.event_handler({'event_type': f'suntimes.{message}', 'sleeping_time': sleeping_time, 'sunrise': sunrise_time, 'sunset': sunset_time})
 
 
 

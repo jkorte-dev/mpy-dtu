@@ -4,8 +4,9 @@ import asyncio
 import hoymiles.uoutputs
 import gc
 
-use_wdt = False
-#ahoy_config['sunset'] = {'disabled': True}
+use_wdt = True
+# ahoy_config['sunset'] = {'disabled': True}
+# ahoy_config['interval'] = 15
 
 
 if use_wdt:
@@ -18,11 +19,11 @@ def init_network_time():
     print('init_network_time')
     import wlan
     import time
-    wlan.do_connect()
+    import ntptime
+    ip = wlan.do_connect()
     init = 10
     while init:
         try:
-            import ntptime
             ntptime.settime()
             init = 0
         except OSError:
@@ -31,6 +32,7 @@ def init_network_time():
                 print('Failed to set ntp time')
             time.sleep(1)
     gc.collect()
+    return ip
 
 
 def result_handler(result, inverter):
@@ -49,27 +51,35 @@ def event_dispatcher(event):
         print("invalid event", event)
         return
     event_type = event.get('event_type', "")
-    if event_type == "inverter.polling" and blink is not None:
+    if event_type == "inverter.polling" and blink:
         blink.on_event(event)
-    elif display is not None:
-        display.on_event(event)
+    else:
+        if display:
+            display.on_event(event)
+        if mqtt:
+            mqtt.on_event(event, topic=ahoy_config.get('dtu', {}).get('name', 'mpy-dtu'))
     if use_wdt:
         if event_type == "suntimes.sleeping":
-            keepalive_timer.init(mode=Timer.PERIODIC, period=2000, callback=lambda t: (print('t', end=""), watchdog_timer.feed()))
+            keepalive_timer.init(mode=Timer.PERIODIC, period=2000, callback=lambda t: (print(',', end=""), watchdog_timer.feed()))
         elif event_type == "suntimes.wakeup":
             keepalive_timer.deinit()
         watchdog_timer.feed()
 
 
-init_network_time()
+ip_addr = init_network_time()
 
 display = hoymiles.uoutputs.DisplayPlugin(ahoy_config.get('display', {}))  # {'i2c_num': 0}
 mqtt = hoymiles.uoutputs.MqttPlugin(ahoy_config.get('mqtt', {'host': 'homematic-ccu2'}))
 blink = hoymiles.uoutputs.BlinkPlugin(ahoy_config.get('blink', {}))  # {'led_pin': 7, 'led_high_on': True, 'neopixel': False}
 
+if ip_addr:
+    event_dispatcher({'event_type': 'wifi.up', 'ip': ip_addr})
+
+gc.collect()
+
 dtu = HoymilesDTU(ahoy_cfg=ahoy_config,
                   status_handler=result_handler,
-                  info_handler=lambda result, inverter: print("hw_info", result, result.to_dict()),
+                  info_handler=result_handler,
                   event_handler=event_dispatcher)
 
 asyncio.run(dtu.start())

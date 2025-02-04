@@ -15,7 +15,7 @@ Required Hardware Setup
 The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 See README.md [1] for hardware setup on Raspberry Pi
 
-![display](images/mpy-dtu.png)
+![display](images/mpy-dtu.png) ![display](images/mpy-dtu-web.png)
 
 Required python modules
 -----------------------
@@ -156,13 +156,16 @@ or even more experimental than above with ugly minimalistic web interface  (pico
 mpremote run hoymiles_exp.py
 ```
 
+`hoymiles_exp.py` requires a lot of memory. You will need to install parts as mpy modules.
+
 Caveats
 -------
 
 **This is work in progress. In this stage it is more or less a proof of concept and not stable at all, not even thoroughly tested.
 Be prepared for crashes and incomplete documentation.**
 
-If you run out of memory install parts of the hoymiles modules as mpy modules using `mpy-cross`. I think esp32s2 is a good choice to start with, esp32c6 even better.
+If you run out of memory (e.g. you see `OSError: [Errno 12] ENOMEM`) install parts of the hoymiles modules as mpy modules using `mpy-cross`. 
+I think esp32s2 is a good choice to start with, esp32c6 even better.
 Inverter polling is very bad on rp2350 :-( but runs OK on esp32c6.
 
 *Only Hoymiles HM series supported.*
