@@ -15,7 +15,7 @@ Required Hardware Setup
 The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 See README.md [1] for hardware setup on Raspberry Pi
 
-![display](images/mpy-dtu.png) ![display](images/mpy-dtu-web.png)
+![display](images/mpy-dtu.png) ![display](images/mpy-dtu-web-sm.png)
 
 Required python modules
 -----------------------
