@@ -4,185 +4,210 @@ from datetime import datetime, timezone
 import time
 
 _CSS = const("""
-    #resp-table, .resp-table{
-        width: 100%;
-        display: table;
-    }
-    #resp-table-body, .resp-table-body{
-        display: table-row-group;
-    }
-    .resp-table-row{
-        display: table-row;
-    }
-    .table-body-cell{
-        display: table-cell;
-        border: 1px solid #dddddd;
-        padding: 8px;
-        line-height: 1.42857143;
-        vertical-align: top;
-        font-family: Arial;
-    }
-   .header-green{
-        background: green;
-        color: white;
-        text-align: center;
-    }
-    .cell-lightgreen{
-        background: chartreuse;
-        text-align: center;
-    }
-    .header-blue{
-        background: blue;
-        color: white;
-        text-align: center;
-    }
-    .cell-lightblue{
-        background: deepskyblue;
-        text-align: center;
-        display: block;
-    }
-    .half{
-        width: 50%;
-        margin: -1;
-        margin-top: 10px;
-        display: inline-block;
-    }
-    #content{
-        margin: 5px;
-    }
-    
-   .footer{
-        background-color: lightgrey;
-        margin: 6px;
-        padding: 5px;
-        font-family: Arial;
-        text-align: center;
-    }
+:root {
+    --prim-header-bg-color: green;
+    --prim-cell-bg-color: chartreuse;
+    --sec-header-bg-color: blue;
+    --sec-cell-bg-color: deepskyblue;
+}
 
-    .event {
-        margin: 6px;
+div[data-theme='light'] {
+    --prim-header-bg-color: green;
+    --prim-cell-bg-color: chartreuse;
+    --sec-header-bg-color: blue;
+    --sec-cell-bg-color: deepskyblue;
+}
+
+div[data-theme='dark'] {
+    --prim-header-bg-color: dimgrey;
+    --prim-cell-bg-color: silver;
+    --sec-header-bg-color: grey;
+    --sec-cell-bg-color: whitesmoke;
+}
+
+.r-tb{
+    width: 100%;
+    display: table;
+}
+.r-tb-body{
+    display: table-row-group;
+}
+.r-tb-row{
+    display: table-row;
+}
+.r-tb-cell{
+    display: table-cell;
+    border: 1px solid #dddddd;
+    padding: 8px;
+    line-height: 1.42857143;
+    vertical-align: top;
+    font-family: Arial;
+}
+.hd1{
+    background: var(--prim-header-bg-color);
+    color: white;
+    text-align: center;
+}
+.cl1{
+    background: var(--prim-cell-bg-color);
+    text-align: center;
+}
+.hd2{
+    background: var(--sec-header-bg-color);
+    color: white;
+    text-align: center;
+}
+.cl2{
+    background: var(--sec-cell-bg-color);
+    text-align: center;
+    display: block;
+}
+.half{
+    width: 50%;
+    margin: -1;
+    margin-top: 10px;
+    display: inline-block;
+}
+#content{
+    margin: 5px;
+}
+
+.footer{
+    background-color: lightgrey;
+    margin: 6px;
+    padding: 5px;
+    font-family: Arial;
+    text-align: center;
+}
+
+.event {
+    margin: 6px;
+}
+
+@media only screen and (min-width: 420px) {
+    .r-tb-cell {
+        font-size: 30px;
     }
- 
-    @media only screen and (min-width: 420px) {
-        .table-body-cell {
-            font-size: 30px;
-        }
+}
+
+@media only screen and (orientation: landscape) {
+    .r-tb-cell {
+        font-size: 14px;
     }
-    @media only screen and (orientation: landscape) {
-        .table-body-cell {
-            font-size: 14px;
-        }
-    }
+}
 """)
 
 _JS = const("""
-    const spec = {
-        'temperature': ['Temp. ', ' °C'],
-        'power': ['Power ', ' W'],
-        'voltage': ['U ', ' V'],
-        'current': ['I ', ' A'],
-        'frequency': ['F_AC ', ' Hz'],
-        'energy_daily' : ['Yield Day', 'Wh'],
-        'yield_today' : ['Yield Day', 'Wh'],
-        'yield_total' : ['Yield Total', 'kWh', '0.001'],
-        'energy_daily' : ['Yield Day', 'Wh'],
-        'energy_total' : ['Yield Total', 'kWh', '0.001'],
-        'efficiency' : ['Eff.', '%']
+const spec = {
+    'temperature': ['Temp. ', ' °C'],
+    'power': ['Power ', ' W'],
+    'voltage': ['U ', ' V'],
+    'current': ['I ', ' A'],
+    'frequency': ['F_AC ', ' Hz'],
+    'energy_daily' : ['Yield Day', 'Wh'],
+    'yield_today' : ['Yield Day', 'Wh'],
+    'yield_total' : ['Yield Total', 'kWh', '0.001'],
+    'energy_daily' : ['Yield Day', 'Wh'],
+    'energy_total' : ['Yield Total', 'kWh', '0.001'],
+    'efficiency' : ['Eff.', '%']
+}
+
+const specMap = new Map(Object.entries(spec));
+
+document.addEventListener('DOMContentLoaded', function() {
+    window.setInterval(updateContent, 10000);
+});
+function updateContent() {
+    fetch(window.location + 'data')
+        .then(response => response.json())
+        .then(data => showData(data));
+}
+
+
+function showData(json) {
+    let values = [json]
+    json.power = json.phases[0].power;
+
+    const content = document.getElementById('content');
+    if (json.event['event_type'] == 'suntimes.sleeping') {
+        theme = 'dark';
+    } else {
+        theme = 'light';
     }
+    content.setAttribute('data-theme', theme);
+    content.innerText = ''; // clear node first
+    renderTable(content, values, json.inverter_name + ' ' + json.time + '\\n ' + new Date(), 'hd1', 'cl1');
+    json.strings.forEach(item => {
+        strNde = div('half');
+        content.appendChild(strNde);
+        renderTable(strNde, [item], item.name, 'hd2', 'cl2');
+    })
 
-    const specMap = new Map(Object.entries(spec));
-
-    document.addEventListener('DOMContentLoaded', function() {
-        window.setInterval(updateContent, 10000);
-    });
-    function updateContent() {
-        fetch(window.location + 'data')
-            .then(response => response.json())
-            .then(data => {
-            let now = new Date();
-            showData(data)
-        });
-    }
-
-
-   function showData(json) {
-        let values = [json]
-        json.power = json.phases[0].power;
-
-        const content = document.getElementById('content');
-        content.innerText = ''; // clear node first
-        renderTable(content, values, json.inverter_name + ' ' + json.time + '\\n ' + new Date(), 'header-green', 'cell-lightgreen');
-        json.strings.forEach(item => {
-            strNde = div('half');
-            content.appendChild(strNde);
-            renderTable(strNde, [item], item.name, 'header-blue', 'cell-lightblue');
+    const footer = document.getElementById('footer');
+    footer.className = 'footer'
+    if (json.event) {
+        footer.innerText = ''
+        Object.keys(json.event).forEach(key => {
+            let e =  document.createElement('span');
+            e.innerText = `${key}: ${json.event[key]}`
+            e.className = "event"
+            footer.appendChild(e)
         })
-
-        const footer = document.getElementById('footer');
-        footer.className = 'footer'
-        if (json.event) {
-            footer.innerText = ''
-            Object.keys(json.event).forEach(key => {
-                let e =  document.createElement('span');
-                e.innerText = `${key}: ${json.event[key]}`
-                e.className = "event"
-                footer.appendChild(e)
-            })
-        }
-    };
-
-    function div(cssClass) {
-       let div =  document.createElement('div');
-       div.className = cssClass;
-       return div;
     }
+};
 
-    function renderHeader(value, cssClass) {
-        let divTable = div('resp-table ' + cssClass);
-        let divBody = div('resp-table-body');
-        let divRow = div('resp-table-row');
-        let divCell = div('table-body-cell');
-        divBody.appendChild(divRow);
-        divRow.append(divCell);
-        divCell.innerText = value;
-        divTable.appendChild(divBody);
-        return divTable;
-    }
+function div(cssClass) {
+    let div =  document.createElement('div');
+    div.className = cssClass;
+    return div;
+}
 
-    function renderTable(parentNode, values, headerValue, headerCss, cellCss) {
+function renderHeader(value, cssClass) {
+    let tbl = div('r-tb ' + cssClass);
+    let bdy = div('r-tb-body');
+    let row = div('r-tb-row');
+    let cell = div('r-tb-cell');
+    bdy.appendChild(row);
+    row.append(cell);
+    cell.innerText = value;
+    tbl.appendChild(bdy);
+    return tbl;
+}
 
-        parentNode.appendChild(renderHeader(headerValue, headerCss))
-        const divTable = div('resp-table');
-        const divBody = div('resp-table-body');
-        divTable.appendChild(divBody);
-        parentNode.appendChild(divTable);
+function renderTable(parentNode, values, headerValue, headerCss, cellCss) {
+    parentNode.appendChild(renderHeader(headerValue, headerCss))
 
-        var divRow = div('resp-table-row');
-        var counter = 0;
+    const tbl = div('r-tb');
+    const bdy = div('r-tb-body');
+    tbl.appendChild(bdy);
+    parentNode.appendChild(tbl);
 
-        values.forEach(item => {
-            for (key in item) {
-                if (specMap.get(key)) {
-                    divCell = div('table-body-cell ' + cellCss);
-                    if (spec[key].length > 2) {
-                        factor = spec[key][2];
-                    } else {
-                        factor = 1;
-                    }
-                    divCell.innerHTML = `<span>${spec[key][0]}</span><br/><span>${(item[key]*factor).toFixed(1)} ${spec[key][1]}</span>`;
-                    divRow.appendChild(divCell);
-                    if (counter == 4) {
-                        divBody.appendChild(divRow);
-                        divRow = div('resp-table-row');
-                        counter = 0;
-                    } else {
-                        counter++;
-                    }
+    var row = div('r-tb-row');
+    var counter = 0;
+
+    values.forEach(item => {
+        for (key in item) {
+            if (specMap.get(key)) {
+                let cell = div('r-tb-cell ' + cellCss);
+                if (spec[key].length > 2) {
+                    factor = spec[key][2];
+                } else {
+                    factor = 1;
+                }
+                cell.innerHTML = `<span>${spec[key][0]}</span><br/><span>${(item[key]*factor).toFixed(1)} ${spec[key][1]}</span>`;
+                row.appendChild(cell);
+                if (counter == 4) {
+                    bdy.appendChild(row);
+                    row = div('r-tb-row');
+                    counter = 0;
+                } else {
+                    counter++;
                 }
             }
-            divBody.appendChild(divRow);
-        });
-    }
+        }
+        bdy.appendChild(row);
+    });
+}
 """)
 
 _HTML = const("""
@@ -194,7 +219,7 @@ _HTML = const("""
 </head>
 <body>
 <div id="content">
-  DTU started waiting for data ....
+    DTU started. Waiting for data ....
 </div>
 <div id="footer"></div>
 </body>
