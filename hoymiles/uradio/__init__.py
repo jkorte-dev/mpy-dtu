@@ -6,7 +6,7 @@ from machine import Pin, SPI
 try:
     from nrf24 import RF24
 except ImportError:
-    from .nrf24_mp import RF24
+    from .nrf24 import RF24
 
 from hoymiles import HOYMILES_DEBUG_LOGGING, hexify_payload
 

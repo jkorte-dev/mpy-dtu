@@ -1,5 +1,12 @@
-Communicating with Hoymiles Micro-Inverters using Micropython
+mpy-DTU 
 =======================================================================
+
+A simple DTU for Hoymiles solar inverters written in Micropython.
+
+![display](images/mpy-dtu.png) ![display](images/mpy-dtu-web-sm.png)
+
+Communicating with Hoymiles Micro-Inverters using Micropython
+------------------------
 
 The `hoymiles` package in this directory is an adopted version of Ahoy CPython tools to communicate with Hoymiles micro-inverters [0].
 It has been modified, refactored and extended to run on Micropython (tested so far on esp32c3, esp32s2, esp32, rp2350 (pico2 w), esp32c6)
@@ -15,9 +22,8 @@ Required Hardware Setup
 The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 See README.md [1] for hardware setup on Raspberry Pi
 
-![display](images/mpy-dtu.png) ![display](images/mpy-dtu-web-sm.png)
 
-Required python modules
+Required Python Modules
 -----------------------
 
 Some modules are not installed by default on Micropython, therefore you have to add them manually:
@@ -34,7 +40,7 @@ mpremote mip install umqtt.robust
 mpremote mip install ssd1306
 ```
 
-WIFI setup
+WiFi Setup
 ----------
 
 You also need some scripts to setup wifi
@@ -65,7 +71,7 @@ Unfortunately the official Micropython driver does not support this features.
 Therefore, I included a driver which I ported from CircuitPython to Micropython.
 The source of this driver is [3]. See documentation from Adafruit [4]. The API is unchanged except initialization. 
 As the driver (and other code) consumes a lot of memory I recommend installing the driver
-`nrf24_mp.py` as a mpy module using the micropython tool `mpy-cross`.
+`nrf24.py` as a mpy module using the micropython tool `mpy-cross`.
 
 Configuration
 -------------
@@ -90,9 +96,9 @@ mpremote mkdir hoymiles/decoders
 mpremote cp hoymiles/decoders/__init__.py  :hoymiles/decoders/
 mpremote cp hoymiles/decoders/ucrcmod.py   :hoymiles/decoders/
 
-mpremote mkdir hoymiles/nrf24mpy
-mpremote cp hoymiles/nrf24mpy/__init__.py  :hoymiles/nrf24mpy/
-mpremote cp hoymiles/nrf24mpy/nrf24_mp.py  :hoymiles/nrf24mpy/
+mpremote mkdir hoymiles/uradio/
+mpremote cp hoymiles/uradio/__init__.py  :hoymiles/uradio/
+mpremote cp hoymiles/uradio/nrf24.py  :hoymiles/uradio/
 
 mpremote cp hoymiles/uoutputs.py           :hoymiles/
 mpremote cp hoymiles/websunsethandler.py   :hoymiles/
@@ -150,7 +156,7 @@ The following command will run a micropython script to poll the inverter and out
 mpremote run hoymiles_mpy.py
 ```
 
-or even more experimental than above with ugly minimalistic web interface  (pico 2 W only):
+or even more experimental than above with minimal web gui:
 
 ```code
 mpremote run hoymiles_exp.py
@@ -161,8 +167,10 @@ mpremote run hoymiles_exp.py
 Caveats
 -------
 
-**This is work in progress. In this stage it is more or less a proof of concept and not stable at all, not even thoroughly tested.
-Be prepared for crashes and incomplete documentation.**
+I have been running the code on an esp32c6 board for several days now, even with the web server without any issues.
+But:
+
+**This is work in progress. Be prepared for crashes and incomplete documentation.**
 
 If you run out of memory (e.g. you see `OSError: [Errno 12] ENOMEM`) install parts of the hoymiles modules as mpy modules using `mpy-cross`. 
 I think esp32s2 is a good choice to start with, esp32c6 even better.
@@ -177,8 +185,8 @@ Modifications
 -------------
 
 - moved all Linux/CPython specific code to `__main__.py` all shared code to `hoymiles/__init__.py` and `decoders/__init__.py`
-- extracted NFR24 communication code to new subpackage nrf24 (Linux/CPython only)
-- NRF communication code for Micropython in subpackage nrf24mpy including driver ported from Circuitpython (Micropython only)
+- extracted NFR24 communication code to new subpackage radio (Linux/CPython only)
+- NRF communication code for Micropython in subpackage uradio including driver ported from CircuitPython (Micropython only)
 - extracted sunset handler to module `sunsethandler.py`(Linux/CPython only)
 - added `websunsethandler.py` for Micropython because precision is not sufficient on Micropython to calculate sunset
 - added `uoutputs.py` for Micropython output plugins (Micropython only)
@@ -195,6 +203,7 @@ Output plugins so far:
 - SSD1306 I2C display 
 - MQTT
 - Blink LED / WS2812 NeoPixel
+- Web Gui
 
 TODOs
 ------

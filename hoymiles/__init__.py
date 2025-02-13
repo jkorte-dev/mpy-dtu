@@ -632,9 +632,9 @@ class HoymilesDTU:
         self.hmradio = None
         if ahoy_cfg.get('nrf') is not None:
             if sys.platform == 'linux':
-                from .nrf24 import HoymilesNRF
+                from .radio import HoymilesNRF
             else:
-                from .nrf24mpy import HoymilesNRF
+                from .uradio import HoymilesNRF
                 print("importing HoymilesNRF micropython version")
             for radio_config in ahoy_cfg.get('nrf', [{}]):
                 self.hmradio = HoymilesNRF(**radio_config)  # hmm wird jedesmal ueberschrieben

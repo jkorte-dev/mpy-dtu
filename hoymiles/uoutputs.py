@@ -58,8 +58,6 @@ class DisplayPlugin(OutputPluginFactory):
             else:
                 i2c = I2C(i2c_num)
             print("Display i2c", i2c)
-            splash = "Ahoy! DTU"
-
             self.display_width = display_width
 
             # extend display class
@@ -81,10 +79,24 @@ class DisplayPlugin(OutputPluginFactory):
                             oled.fill_rect(x + i * scale, y + j * scale, scale, scale, 1)
 
             SSD1306_I2C.text_scaled = oled_text_scaled
-            fscale = 2
+
             self.display = SSD1306_I2C(display_width, display_height, i2c)
             self.display.fill(0)
-            self.display.text_scaled(splash, ((display_width - len(splash)*self.font_size) // 2), (display_height // 2) - self.font_size, fscale)
+            fscale = 2
+            try:
+                import hoymiles.ulogo as ulogo
+                self.display.invert(1)
+                ulogo.show_logo(self.display)
+                self.display.text_scaled("MPY", 60, 14 - self.font_size, fscale)
+                self.display.text_scaled("DTU", 60, 34 - self.font_size, fscale)
+                import sys
+                import gc
+                del sys.modules['hoymiles.ulogo']
+                del ulogo
+                gc.collect()
+            except ImportError:
+                splash = "mpDTU"  # "Ahoy!"
+                self.display.text_scaled(splash, ((display_width - len(splash)*self.font_size*fscale) // 2), (display_height // 2) - self.font_size, fscale)
             self.display.show()
 
         except Exception as e:
@@ -104,6 +116,7 @@ class DisplayPlugin(OutputPluginFactory):
 
         if self.display:
             self.display.fill(0)
+            self.display.invert(0)
             self.display.show()
 
         phase_sum_power = 0

@@ -1,0 +1,31 @@
+{
+  "urls": [
+    [
+      "nrf24.mpy",
+      "http://localhost:8000/micropython-lib/nrf24.mpy"
+    ],
+    [
+      "wlan.mpy",
+      "http://localhost:8000/micropython-lib/wlan.mpy"
+    ]
+  ],
+  "deps": [
+    [
+      "datetime",
+      "latest"
+    ],
+    [
+      "logging",
+      "latest"
+    ],
+    [
+      "umqtt.robust",
+      "latest"
+    ],
+    [
+      "ssd1306",
+      "latest"
+    ]
+  ],
+  "version": "0.1.0"
+}

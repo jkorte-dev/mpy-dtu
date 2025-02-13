@@ -25,30 +25,12 @@
       "http://localhost:8000/hoymiles/decoders/ucrcmod.py"
     ],
     [
-      "hoymiles/nrf24mpy/__init__.py",
-      "http://localhost:8000/hoymiles/nrf24mpy/__init__.py"
+      "hoymiles/uradio/__init__.py",
+      "http://localhost:8000/hoymiles/uradio/__init__.py"
     ],
     [
-      "hoymiles/nrf24mpy/nrf24_mp.py",
-      "http://localhost:8000/hoymiles/nrf24mpy/nrf24_mp.py"
-    ]
-  ],
-  "deps": [
-    [
-      "datetime",
-      "latest"
-    ],
-    [
-      "logging",
-      "latest"
-    ],
-    [
-      "umqtt.robust",
-      "latest"
-    ],
-    [
-      "ssd1306",
-      "latest"
+      "hoymiles/uradio/nrf24.py",
+      "http://localhost:8000/hoymiles/uradio/nrf24.py"
     ]
   ],
   "version": "0.1.0"
