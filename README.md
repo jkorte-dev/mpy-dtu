@@ -18,7 +18,7 @@ It has been modified, refactored and extended to run on Micropython (tested so f
 It even runs on microcontrollers without wifi support, though it might not be very useful.
 I haven't tried esp8266 and do not recommend it because of hardware limitations, thought it might work.
 Parts of the code is shared between CPython and Micropython. The code runs on Linux based Raspberry Pi hardware as well but this might change (Tested with Raspberry Pi Zero W so far).
-If you want to run this code on a Linux based Raspberry Pi SBC See README.md [1] for hardware setup.
+If you want to run this code on a Linux based Raspberry Pi SBC see README.md [1] for hardware setup.
 
 *The following documentation assumes that you are familiar with Micropython and it's tools `mpremote` [6] and `mpy-cross` [7]*
 
@@ -144,6 +144,7 @@ mpremote cp hoymiles/uradio/__init__.py  :hoymiles/uradio/
 mpremote cp hoymiles/uradio/nrf24.py  :hoymiles/uradio/
 
 mpremote cp hoymiles/uoutputs.py           :hoymiles/
+mpremote cp hoymiles/ulogo.py              :hoymiles/    # optional 
 mpremote cp hoymiles/websunsethandler.py   :hoymiles/
 mpremote cp hoymiles/uwebserver.py         :hoymiles/
 ```
