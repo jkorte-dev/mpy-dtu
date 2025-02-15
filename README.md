@@ -1,9 +1,14 @@
 mpy-DTU 
 =======================================================================
 
-A simple DTU for Hoymiles solar inverters written in Micropython.
+A simple Micropython DTU for Hoymiles solar inverters which displays live data from your Hoymiles solar inverter. There is MQTT support for integration in home automation.
 
-![display](images/mpy-dtu.png) ![display](images/mpy-dtu-web-sm.png)
+
+![display](images/mpy-dtu.png) 
+![display](images/mpy-dtu-web-light-sm2.png)
+![display](images/mpy-dtu-web-dark-sm2.png)
+
+It's fun project for people like me who like hacking with (micro-)python.
 
 Communicating with Hoymiles Micro-Inverters using Micropython
 ------------------------
@@ -21,6 +26,12 @@ Required Hardware Setup
 
 The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 See README.md [1] for hardware setup on Raspberry Pi
+
+Required Hardware:
+
+- ESP32 (any esp32 is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6) or RP2350 W (no good experiences, but basically worked)
+- nRF24L01+ Module
+- I2C OLED Display (128x64 ssd1306)
 
 
 Required Python Modules
@@ -69,7 +80,7 @@ nRF24L01 Driver
 The nRF24L01 driver for the inverter communication needs support for `auto acknowledge` and `dynamic payloads`.
 Unfortunately the official Micropython driver does not support this features.
 Therefore, I included a driver which I ported from CircuitPython to Micropython.
-The source of this driver is [3]. See documentation from Adafruit [4]. The API is unchanged except initialization. 
+The source of the original CircuitPython driver is [3]. See documentation from Adafruit [4]. The API is unchanged except initialization. 
 As the driver (and other code) consumes a lot of memory I recommend installing the driver
 `nrf24.py` as a mpy module using the micropython tool `mpy-cross`.
 
@@ -156,13 +167,14 @@ The following command will run a micropython script to poll the inverter and out
 mpremote run hoymiles_mpy.py
 ```
 
-or even more experimental than above with minimal web gui:
+if you want to try the version with minimal web gui run:
 
 ```code
 mpremote run hoymiles_exp.py
 ```
 
 `hoymiles_exp.py` requires a lot of memory. You will need to install parts as mpy modules.
+Try also `gc.connect()` to free some memory.
 
 Caveats
 -------
@@ -176,7 +188,7 @@ If you run out of memory (e.g. you see `OSError: [Errno 12] ENOMEM`) install par
 I think esp32s2 is a good choice to start with, esp32c6 even better.
 Inverter polling is very bad on rp2350 :-( but runs OK on esp32c6.
 
-*Only Hoymiles HM series supported.*
+*Only Hoymiles HM series supported. The communictation with the inverter is readonly*
 
 
 
