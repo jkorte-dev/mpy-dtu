@@ -2,11 +2,11 @@
   "urls": [
     [
       "nrf24.mpy",
-      "http://localhost:8000/micropython-lib/nrf24.mpy"
+      "github:jkorte-dev/mpy-dtu/micropython-lib/nrf24.mpy"
     ],
     [
       "wlan.mpy",
-      "http://localhost:8000/micropython-lib/wlan.mpy"
+      "github:jkorte-dev/mpy-dtu/micropython-lib/wlan.mpy"
     ]
   ],
   "deps": [
