@@ -6,7 +6,7 @@ The API is unchanged except initialization. Therefore the excellent documentatio
 As the driver consumes a lot of memory I recommend installing the driver as an mpy module. You can achieve this by using Micropython `mip`.
 
 ```code
- mpremote mip install --index https://github.com/jkorte-dev/mpy-dtu/nrf24 nrf24
+ mpremote mip install --index https://raw.githubusercontent.com/jkorte-dev/mpy-dtu/master/nrf24 nrf24
 ```
 
 References

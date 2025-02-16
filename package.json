@@ -2,35 +2,35 @@
   "urls": [
     [
       "hoymiles/__init__.py",
-      "http://localhost:8000/hoymiles/__init__.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/__init__.py"
     ],
     [
       "hoymiles/uoutputs.py",
-      "http://localhost:8000/hoymiles/uoutputs.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/uoutputs.py"
     ],
     [
       "hoymiles/uwebserver.py",
-      "http://localhost:8000/hoymiles/uwebserver.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/uwebserver.py"
     ],
     [
       "hoymiles/websunsethandler.py",
-      "http://localhost:8000/hoymiles/websunsethandler.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/websunsethandler.py"
     ],
     [
       "hoymiles/decoders/__init__.py",
-      "http://localhost:8000/hoymiles/decoders/__init__.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/decoders/__init__.py"
     ],
     [
       "hoymiles/decoders/ucrcmod.py",
-      "http://localhost:8000/hoymiles/decoders/ucrcmod.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/decoders/ucrcmod.py"
     ],
     [
       "hoymiles/uradio/__init__.py",
-      "http://localhost:8000/hoymiles/uradio/__init__.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/uradio/__init__.py"
     ],
     [
       "hoymiles/uradio/nrf24.py",
-      "http://localhost:8000/hoymiles/uradio/nrf24.py"
+      "github:jkorte-dev/mpy-dtu/hoymiles/uradio/nrf24.py"
     ]
   ],
   "version": "0.1.0"

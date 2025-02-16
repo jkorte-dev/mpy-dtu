@@ -99,7 +99,11 @@ Unfortunately the official Micropython driver does not support this features.
 Therefore, I included a driver which I ported from CircuitPython to Micropython.
 The source of the original CircuitPython driver is [3]. See documentation from Adafruit [4]. The API is unchanged except initialization. 
 As the driver (and other code) consumes a lot of memory I recommend installing the driver
-`nrf24.py` as a mpy module using the micropython tool `mpy-cross`.
+`nrf24.py` as a mpy module using the micropython tool `mpy-cross` or use 
+
+```code
+ mpremote mip install --index https://raw.githubusercontent.com/jkorte-dev/mpy-dtu/master/nrf24 nrf24
+```
 
 Configuration
 -------------
@@ -139,11 +143,10 @@ mpremote cp hoymiles/uwebserver.py         :hoymiles/
 Alternative Installation 
 -------------------------
 
-The module can also be installed as local mip package with 
+The module can also be installed as mip package from the repo with 
 
 ```
-python3 -m http.server
-mpremote mip install --target / http://localhost:8000/package.json
+mpremote mip install --target / github:jkorte-dev/mpy-dtu/package.json
 ```
 
 Example Run
