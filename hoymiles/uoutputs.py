@@ -195,7 +195,7 @@ class MqttPlugin(OutputPluginFactory):
         try:
             from umqtt.robust import MQTTClient
         except ImportError:
-            print('Install module with command: mpremote mip install mqtt.simple')
+            print('Install module with command: \nmpremote mip install umqtt.simple\nmpremote mip install umqtt.robust')
             return
         try:
             from machine import unique_id
@@ -310,7 +310,7 @@ class BlinkPlugin(OutputPluginFactory):
     def __init__(self, config, **params):
         super().__init__(**params)
         led_pin = config.get('led_pin')
-        self.high_on = config.get('led_high_on', True)
+        self.high_on = not config.get('inverted', False)
         self.np = None
         self.led = None
         if led_pin is None:

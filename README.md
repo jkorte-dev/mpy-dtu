@@ -47,6 +47,7 @@ mpremote mip install datetime
 Dependencies for output plugins:
 
 ```code
+mpremote mip install umqtt.simple
 mpremote mip install umqtt.robust
 mpremote mip install ssd1306
 ```
@@ -143,7 +144,7 @@ mpremote cp hoymiles/uwebserver.py         :hoymiles/
 Alternative Installation 
 -------------------------
 
-The module can also be installed as mip package from the repo with 
+The module can also be installed as mip package [8] from the repo with 
 
 ```
 mpremote mip install --target / github:jkorte-dev/mpy-dtu/package.json
@@ -281,3 +282,4 @@ References
 - [5] https://crcmod.sourceforge.net/intro.html
 - [6] https://docs.micropython.org/en/latest/reference/mpremote.html
 - [7] https://docs.micropython.org/en/latest/reference/mpyfiles.html
+- [8] https://docs.micropython.org/en/latest/reference/packages.html
