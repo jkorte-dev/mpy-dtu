@@ -1,12 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-"""
-Hoymiles output plugin library
-"""
-
 from datetime import datetime, timezone
-from hoymiles.decoders import StatusResponse, HardwareInfoResponse # todo get rid of this imports
+from hoymiles.decoders import StatusResponse, HardwareInfoResponse  # todo get rid of this imports
 import framebuf
 from time import sleep
 import logging
@@ -34,7 +27,7 @@ class DisplayPlugin(OutputPluginFactory):
                'wifi': bytearray(b'\xf8\x00\x0e\x00\xe3\x009\x80\x0c\x80\xe6\xc02@\x1b@\xc9@\xc9@'),
                'level': bytearray(b'\x00\x00\x01\x80\x01\x80\x01\x80\r\x80\r\x80\r\x80m\x80m\x80m\x80'),
                'moon': bytearray(b'\x0f\x00\x1e\x00<\x00|\x00|\x00|\x00|\x00<\x00\x1e\x00\x0f\x00'),
-               'blank': bytearray([0x00] * 20)}  # todo symbols: sun https://www.piskelapp.com/
+               'blank': bytearray([0x00] * 20)}
 
     def __init__(self, config, **params):
         super().__init__(**params)
@@ -171,7 +164,6 @@ class DisplayPlugin(OutputPluginFactory):
         return x, y
 
     def on_event(self, event):
-        # todo event: offline, polling (wifi up, sleeping, wakeup done)
         if event.get('event_type', "") == 'suntimes.sleeping':
             self.show_symbol(slot=1, sym='moon')
         elif event.get('event_type', "") == "suntimes.wakeup":
@@ -336,7 +328,7 @@ class BlinkPlugin(OutputPluginFactory):
                 self.led.value(not self.high_on)  # self.led.toggle() not always supported
 
     def on_event(self, event):
-        if self.np is not None:
+        if self.np and 'inverter.polling' in event.get('event_type', ""):
             self.np[0] = (0, 16, 0)
             self.np.write()
             sleep(0.05)
@@ -369,4 +361,3 @@ class WebPlugin(OutputPluginFactory):
     def on_event(self, event):
         if 'suntimes' in event.get('event_type', ""):
             self.last_event = event
-

@@ -14,7 +14,7 @@ Communicating with Hoymiles Micro-Inverters using Micropython
 ------------------------
 
 The `hoymiles` package in this directory is an adopted version of Ahoy CPython tools to communicate with Hoymiles micro-inverters [0].
-It has been modified, refactored and extended to run on Micropython (tested so far on esp32c3, esp32s2, esp32, rp2350 (pico2 w), esp32c6)
+It has been modified, refactored and extended to run on Micropython (tested so far on esp32c3, esp32s2, esp32, rp2350 (pico2 w), esp32c6, wemos w600 (console output only, not enough ram for more!)
 It even runs on microcontrollers without wifi support, though it might not be very useful.
 I haven't tried esp8266 and do not recommend it because of hardware limitations, thought it might work.
 Parts of the code is shared between CPython and Micropython. The code runs on Linux based Raspberry Pi hardware as well but this might change (Tested with Raspberry Pi Zero W so far).
@@ -28,7 +28,7 @@ The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 
 Required Hardware:
 
-- ESP32 with Micropython (any esp32 is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6) or RP2350 W (no good experiences, but basically worked)
+- ESP32x with Micropython (any esp32x is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6). RP2350 W basically worked but nrf communication wasn't good. esp32 and w600 worked only with console output due to lack of ram.
 - nRF24L01+ Module
 - I2C OLED Display (128x64 ssd1306)
 - Hoymiles HM series solar inverter with panel ;-)
@@ -229,7 +229,7 @@ Important is, as I mentioned before stable power supply. I have enabled the Watc
 
 If you run out of memory (e.g. you see `OSError: [Errno 12] ENOMEM`) install parts of the hoymiles modules as mpy modules using `mpy-cross`. 
 Start with the `nrf24.py` driver and `hoymiles/decoder/__init.py`.
-I think esp32s2 is a good choice to start with, esp32c6 even better.
+I think esp32s2 is a good choice to start with as it has plenty of ram, esp32c6 works also very well.
 Inverter polling is very bad on rp2350, but runs OK on esp32c6.
 While spending a lot of time on stability, I discovered that a stable power supply is crucial.
 On the USB port the microcontroller stopped operating after some time. Do not use the cheapest power supply,
