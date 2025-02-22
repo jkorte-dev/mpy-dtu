@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from hoymiles.decoders import StatusResponse, HardwareInfoResponse  # todo get rid of this imports
 import framebuf
 from time import sleep
+import time
 import logging
 
 
@@ -180,6 +181,7 @@ class MqttPlugin(OutputPluginFactory):
         super().__init__(**params)
 
         print("mqtt plugin", config)
+        self.start_time = time.time()
 
         self.dry_run = config.get('dry_run', False)
         self.client = None
@@ -290,6 +292,9 @@ class MqttPlugin(OutputPluginFactory):
                 self._publish(f'{topic}/status', 'sleeping')
             elif event_type == "suntimes.wakeup":
                 self._publish(f'{topic}/status', 'awake')
+        else:
+            uptime = str(timedelta(seconds=int(time.time() - self.start_time))).replace(' ', '')
+            self._publish(f'{topic}/uptime', uptime)
 
     def _publish(self, topic, value):
         if self.dry_run or self.client is None:
