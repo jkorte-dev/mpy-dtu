@@ -7,10 +7,6 @@ import gc
 use_wdt = True
 # ahoy_config['sunset'] = {'disabled': True}
 # ahoy_config['interval'] = 15
-mqtt = None
-display = None
-blink = None
-webdata = None
 
 
 if use_wdt:
@@ -41,14 +37,8 @@ def init_network_time():
 
 def result_handler(result, inverter):
     print(result.to_dict())
-    if display:
-        display.store_status(result)
-    if webdata:
-        webdata.store_status(result)
-    if mqtt:
-        mqtt.store_status(result, topic=inverter.get('mqtt', {}).get('topic', None))
-    if blink:
-        blink.store_status(result)
+    for output in outputs:
+        output.store_status(result)
     # print("mem_free:", gc.mem_free())
     if use_wdt:
         watchdog_timer.feed()
@@ -60,18 +50,8 @@ def event_dispatcher(event):
         print("invalid event", event)
         return
     event_type = event.get('event_type', "")
-    if event_type == "inverter.polling":
-        if blink:
-            blink.on_event(event)
-        if mqtt:
-            mqtt.on_event(event, topic=ahoy_config.get('dtu', {}).get('name', 'mpy-dtu'))
-    else:
-        if display:
-            display.on_event(event)
-        if mqtt:
-            mqtt.on_event(event, topic=ahoy_config.get('dtu', {}).get('name', 'mpy-dtu'))
-        if webdata:
-            webdata.on_event(event)
+    for output in outputs:
+        output.on_event(event)
     if use_wdt:
         if event_type == "suntimes.sleeping":
             keepalive_timer.init(mode=Timer.PERIODIC, period=2000, callback=lambda t: (print(',', end=""), watchdog_timer.feed()))
@@ -83,9 +63,11 @@ def event_dispatcher(event):
 ip_addr = init_network_time()
 
 display = hoymiles.uoutputs.DisplayPlugin(ahoy_config.get('display', {}))  # {'i2c_num': 0}
-mqtt = hoymiles.uoutputs.MqttPlugin(ahoy_config.get('mqtt', {'host': 'homematic-ccu2'}))
+mqtt = hoymiles.uoutputs.MqttPlugin(ahoy_config.get('mqtt', {'host': 'homematic-ccu2'}), topic=ahoy_config.get('dtu', {}).get('name', 'mpy-dtu'))
 blink = hoymiles.uoutputs.BlinkPlugin(ahoy_config.get('blink', {}))  # {'led_pin': 7, 'inverted': False, 'neopixel': False}
 webdata = hoymiles.uoutputs.WebPlugin(ahoy_config.get('inverters', [{}])[0])
+
+outputs = [blink, display, mqtt, webdata]
 
 if ip_addr:
     event_dispatcher({'event_type': 'wifi.up', 'ip': ip_addr})
