@@ -7,6 +7,10 @@ import gc
 use_wdt = True
 # ahoy_config['sunset'] = {'disabled': True}
 # ahoy_config['interval'] = 15
+mqtt = None
+display = None
+blink = None
+webdata = None
 
 
 if use_wdt:
@@ -37,11 +41,15 @@ def init_network_time():
 
 def result_handler(result, inverter):
     print(result.to_dict())
-    display.store_status(result)
-    webdata.store_status(result)
-    mqtt.store_status(result, topic=inverter.get('mqtt', {}).get('topic', None))
-    blink.store_status(result)
-    #print("mem_free:", gc.mem_free())
+    if display:
+        display.store_status(result)
+    if webdata:
+        webdata.store_status(result)
+    if mqtt:
+        mqtt.store_status(result, topic=inverter.get('mqtt', {}).get('topic', None))
+    if blink:
+        blink.store_status(result)
+    # print("mem_free:", gc.mem_free())
     if use_wdt:
         watchdog_timer.feed()
         keepalive_timer.deinit()
@@ -52,8 +60,11 @@ def event_dispatcher(event):
         print("invalid event", event)
         return
     event_type = event.get('event_type', "")
-    if event_type == "inverter.polling" and blink:
-        blink.on_event(event)
+    if event_type == "inverter.polling":
+        if blink:
+            blink.on_event(event)
+        if mqtt:
+            mqtt.on_event(event, topic=ahoy_config.get('dtu', {}).get('name', 'mpy-dtu'))
     else:
         if display:
             display.on_event(event)
@@ -73,7 +84,7 @@ ip_addr = init_network_time()
 
 display = hoymiles.uoutputs.DisplayPlugin(ahoy_config.get('display', {}))  # {'i2c_num': 0}
 mqtt = hoymiles.uoutputs.MqttPlugin(ahoy_config.get('mqtt', {'host': 'homematic-ccu2'}))
-blink = hoymiles.uoutputs.BlinkPlugin(ahoy_config.get('blink', {}))  # {'led_pin': 7, 'led_high_on': True, 'neopixel': False}
+blink = hoymiles.uoutputs.BlinkPlugin(ahoy_config.get('blink', {}))  # {'led_pin': 7, 'inverted': False, 'neopixel': False}
 webdata = hoymiles.uoutputs.WebPlugin(ahoy_config.get('inverters', [{}])[0])
 
 if ip_addr:
@@ -97,10 +108,10 @@ async def hoymiles_dtu():
 
 async def webserver():
     from hoymiles.uwebserver import WebServer
+    ws = WebServer(data_provider=webdata)
     gc.collect()
     print("mem_free:", gc.mem_free())
     print("starting webserver ...")
-    ws = WebServer(data_provider=webdata)
     await ws.webserver()
 
 

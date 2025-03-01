@@ -24,7 +24,10 @@ class SunsetHandler:
                 print("Failed to retrieve sunset / sunrise from https://api.sunrisesunset.io")
             else:
                 hour, minutes = divmod(self.suntimes_sunset,  60)  # sunset in minutes
-                print(f'Todays sunset is at {hour:02d}:{minutes:02d} UTC, sunrise is at {self.suntimes_sunrise//60}:{self.suntimes_sunrise%60:02d} UTC')
+                sunset_time = f'{hour:02d}:{minutes:02d}'
+                sunrise_time = f'{self.suntimes_sunrise//60:02d}:{self.suntimes_sunrise%60:02d}'
+                print(f'Todays sunset is at {sunset_time} UTC, sunrise is at {sunrise_time} UTC')
+                self._send_suntimes_event('info', f'ts={time.localtime()[3:5]}', sunrise_time, sunset_time)
         else:
             logging.info('Sunset disabled.')
 
@@ -69,9 +72,10 @@ class SunsetHandler:
             self.suntimes_sunset = int(ss_h)*60 + int(ss_m)
         except Exception as e:
             logging.exception(e)
+            self._send_suntimes_event('error', 'n/a', f'ts={time.localtime()[3:5]}', f'e={e}')
 
     def _send_suntimes_event(self, message, sleeping_time, sunrise_time, sunset_time):
-        if self.event_handler is not None:
+        if self.event_handler:
             self.event_handler({'event_type': f'suntimes.{message}', 'sleeping_time': sleeping_time, 'sunrise': sunrise_time, 'sunset': sunset_time})
 
 

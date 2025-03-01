@@ -1,21 +1,11 @@
 from datetime import datetime, timezone, timedelta
-from hoymiles.decoders import StatusResponse, HardwareInfoResponse  # todo get rid of this imports
 import framebuf
 from time import sleep
 import time
 import logging
 
 
-class OutputPluginFactory:
-    def __init__(self, **params):
-        self.inverter_ser = params.get('inverter_ser', '')
-        self.inverter_name = params.get('inverter_name', None)
-
-    def store_status(self, response, **params):
-        raise NotImplementedError('The current output plugin does not implement store_status')
-
-
-class DisplayPlugin(OutputPluginFactory):
+class DisplayPlugin:
     display = None
     display_width = 128  # default
     font_size = 8     # fontsize fix 8 + 2 pixel
@@ -31,8 +21,6 @@ class DisplayPlugin(OutputPluginFactory):
                'blank': bytearray([0x00] * 20)}
 
     def __init__(self, config, **params):
-        super().__init__(**params)
-
         try:
             from machine import Pin, I2C
             from ssd1306 import SSD1306_I2C
@@ -74,7 +62,7 @@ class DisplayPlugin(OutputPluginFactory):
 
             SSD1306_I2C.text_scaled = oled_text_scaled
 
-            self.display = SSD1306_I2C(display_width, display_height, i2c)
+            self.display = SSD1306_I2C(self.display_width, display_height, i2c)
             self.display.fill(0)
             fscale = 2
             try:
@@ -97,14 +85,9 @@ class DisplayPlugin(OutputPluginFactory):
             print("display not initialized", e)
 
     def store_status(self, response, **params):
-        if isinstance(response, HardwareInfoResponse):
-            return
-        if not isinstance(response, StatusResponse):
-            raise ValueError('Data needs to be instance of StatusResponse')
+        data = response.to_dict() if callable(getattr(response, 'to_dict', None)) else None
 
-        data = response.to_dict()
-
-        if data is None:
+        if data is None or data.get('FW_HW_ID'):  # no valid data or HardwareResponse
             print("Invalid response!")
             return
 
@@ -114,9 +97,9 @@ class DisplayPlugin(OutputPluginFactory):
             self.display.show()
 
         phase_sum_power = 0
-        if data.get('phases') is not None:
+        if data.get('phases'):
             for phase in data['phases']:
-                if phase['power'] is not None:
+                if phase['power']:
                     phase_sum_power += phase['power']
         # self.show_value(0, f"     {phase_sum_power} W")
         self.show_value(0, f"{phase_sum_power:0.0f}W", center=True, large=True)
@@ -126,11 +109,11 @@ class DisplayPlugin(OutputPluginFactory):
             yield_today = data['yield_today']
             self.show_value(1, f"{yield_today} Wh", x=40)  # 16+3*8
             self.show_symbol(1, "cal", x=16)
-        if data.get('yield_total') is not None:
+        if data.get('yield_total'):
             yield_total = round(data['yield_total'] / 1000)
             self.show_value(2, f"     {yield_total:01d} kWh")
             self.show_symbol(2, "sum", x=16)
-        if data.get('time') is not None:
+        if data.get('time'):
             timestamp = data['time']  # datetime.isoformat()
             Y, M, D, h, m, s, us, tz, fold = timestamp.tuple()
             self.show_value(3, f' {D:02d}.{M:02d} {h:02d}:{m:02d}:{s:02d}')
@@ -165,24 +148,25 @@ class DisplayPlugin(OutputPluginFactory):
         return x, y
 
     def on_event(self, event):
-        if event.get('event_type', "") == 'suntimes.sleeping':
+        evtp = event.get('event_type', "")
+        if evtp == 'suntimes.sleeping':
+            if self.display:
+                self.display.invert(0)
             self.show_symbol(slot=1, sym='moon')
-        elif event.get('event_type', "") == "suntimes.wakeup":
+        elif evtp == "suntimes.wakeup":
             self.show_symbol(slot=1, sym='blank')
-        elif event.get('event_type', "") == "wifi.up":
+        elif evtp == "wifi.up":
             self.show_symbol(slot=0, sym='wifi', x=self.display_width-self.symbol_size)
             self.show_value(4, event.get('ip', ""), center=True)
             self.last_ip = event.get('ip', "")
 
 
-class MqttPlugin(OutputPluginFactory):
-    """ Mqtt output plugin """
+class MqttPlugin:
     def __init__(self, config, **params):
-        super().__init__(**params)
-
         print("mqtt plugin", config)
         self.start_time = time.time()
 
+        self.topic_root = params.get('topic', params.get('topic', 'mpy-dtu'))
         self.dry_run = config.get('dry_run', False)
         self.client = None
 
@@ -204,26 +188,30 @@ class MqttPlugin(OutputPluginFactory):
             logging.exception(e)
 
     def store_status(self, response, **params):
-        data = response.to_dict()
+        data = response.to_dict() if callable(getattr(response, 'to_dict', None)) else None
 
         if data is None:
             return
 
         topic = params.get('topic', None)
         if not topic:
-            topic = f'{data.get("inverter_name", "hoymiles")}/{data.get("inverter_ser", "unkown")}'
+            topic = f'{self.topic_root}/{data.get("inverter_name", "hoymiles")}'
 
-        if isinstance(response, StatusResponse):
-
+        if data.get('FW_HW_ID'):  # HardwareInfoResponse
+            self._publish(f'{topic}/hardware', f'{data["FW_HW_ID"]}')
+            self._publish(f'{topic}/firmware',
+                          f'v{data.get("FW_ver_maj","")}.{data.get("FW_ver_min","")}.{data.get("FW_ver_pat", "")}' +
+                          f'@{data.get("FW_build_yy","")}.{data.get("FW_build_mm", "")}.{data.get("FW_build_dd", "")}T{data.get("FW_build_HH","")}:{data.get("FW_build_MM","")}')
+        else:  # StatusResponse
             # Global Head
-            if data.get('time') is not None:
+            if data.get('time'):
                 self._publish(f'{topic}/time', data['time'].isoformat())
 
             # AC Data
             phase_id = 0
             phase_sum_power = 0
             phases_ac = data.get('phases')
-            if phases_ac is not None:
+            if phases_ac:
                 for phase in phases_ac:
                     phase_name = f'ac/{phase_id}' if len(phases_ac) > 1 else 'ch0'
                     self._publish(f'{topic}/{phase_name}/U_AC', phase['voltage'])
@@ -237,7 +225,7 @@ class MqttPlugin(OutputPluginFactory):
             # DC Data
             string_id = 1
             string_sum_power = 0
-            if data.get('strings') is not None:
+            if data.get('strings'):
                 for string in data['strings']:
                     string_name = f'ch{string_id}'
                     if 'name' in string:
@@ -253,45 +241,38 @@ class MqttPlugin(OutputPluginFactory):
                     string_sum_power += string['power']
 
             # Global
-            if data.get('temperature') is not None:
+            if data.get('temperature'):
                 self._publish(f'{topic}/Temp', data['temperature'])
 
             # Total
             self._publish(f'{topic}/total/P_DC', string_sum_power)
             self._publish(f'{topic}/total/P_AC', phase_sum_power)
-            if data.get('event_count') is not None:
+            if data.get('event_count'):
                 self._publish(f'{topic}/total/total_events', data['event_count'])
-            if data.get('powerfactor') is not None:
+            if data.get('powerfactor'):
                 self._publish(f'{topic}/total/PF_AC', data['powerfactor'])
-            if data.get('yield_total') is not None:
+            if data.get('yield_total'):
                 self._publish(f'{topic}/total/YieldTotal', data['yield_total'] / 1000)
-            if data.get('yield_today') is not None:
+            if data.get('yield_today'):
                 self._publish(f'{topic}/total/YieldToday', data['yield_today'] / 1000)
-            if data.get('efficiency') is not None:
+            if data.get('efficiency'):
                 self._publish(f'{topic}/total/Efficiency', data['efficiency'])
 
-        elif isinstance(response, HardwareInfoResponse):
-            self._publish(f'{topic}/firmware',
-                          f'v{data.get("FW_ver_maj","")}.{data.get("FW_ver_min","")}.{data.get("FW_ver_pat", "")}' +
-                          f'@{data.get("FW_build_yy","")}.{data.get("FW_build_mm", "")}.{data.get("FW_build_dd", "")}T{data.get("FW_build_HH","")}:{data.get("FW_build_MM","")}')
-
-            if data.get("FW_HW_ID") is not None:
-                self._publish(f'{topic}/hardware', f'{data["FW_HW_ID"]}')
-
-        else:
-            raise ValueError('Data needs to be instance of StatusResponse or a instance of HardwareInfoResponse')
-
     def on_event(self, event, topic=None):
-        if not event or not topic:
+        if not event:
             return
-        event_type = event.get('event_type', "")
-        if "suntimes." in event_type:
+        if not topic:
+            topic = self.topic_root
+        evtp = event.get('event_type', "")
+        if "suntimes." in evtp:
             self._publish(f'{topic}/sunset', event.get('sunset', ""))
             self._publish(f'{topic}/sunrise', event.get('sunrise', ""))
-            if event_type == 'suntimes.sleeping':
+            if evtp == 'suntimes.sleeping':
                 self._publish(f'{topic}/status', 'sleeping')
-            elif event_type == "suntimes.wakeup":
+            elif evtp == "suntimes.wakeup":
                 self._publish(f'{topic}/status', 'awake')
+        elif evtp == "wifi.up":
+            self._publish(f'{topic}/ip_addr', event.get('ip', ""))
         else:
             uptime = str(timedelta(seconds=int(time.time() - self.start_time))).replace(' ', '')
             self._publish(f'{topic}/uptime', uptime)
@@ -303,9 +284,8 @@ class MqttPlugin(OutputPluginFactory):
             self.client.publish(topic.encode(), str(value))
 
 
-class BlinkPlugin(OutputPluginFactory):
+class BlinkPlugin:
     def __init__(self, config, **params):
-        super().__init__(**params)
         led_pin = config.get('led_pin')
         self.high_on = not config.get('inverted', False)
         self.np = None
@@ -341,18 +321,19 @@ class BlinkPlugin(OutputPluginFactory):
             self.np.write()
 
 
-class WebPlugin(OutputPluginFactory):
+class WebPlugin:
     last_response = {'time': datetime.now(timezone.utc), 'inverter_name': 'unkown', 'phases': [{}], 'strings': [{}]}
     last_event = {}
 
-    def __init__(self, config, **params):
-        super().__init__(**params)
+    def __init__(self, config={}, **params):
         if config:
             self.last_response['inverter_name'] = config.get('name', 'unkown')
             self.last_response['strings'] = [{'name': e.get('s_name', "panel")} for e in config.get('strings', [])]
 
     def store_status(self, response, **params):
-        self.last_response = response.to_dict()
+        data = response.to_dict() if callable(getattr(response, 'to_dict', None)) else None
+        if data and not data.get('FW_HW_ID'):  # no valid data or HardwareResponse
+            self.last_response = data
 
     def get_data(self):
         _last = self.last_response

@@ -7,6 +7,10 @@
     [
       "wlan.mpy",
       "github:jkorte-dev/mpy-dtu/micropython-lib/wlan.mpy"
+    ],
+    [
+      "crcmod.mpy",
+      "github:jkorte-dev/mpy-dtu/micropython-lib/crcmod.mpy"
     ]
   ],
   "deps": [
