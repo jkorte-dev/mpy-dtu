@@ -5,8 +5,11 @@
 Hoymiles Micro-Inverters decoder library
 """
 
+import re
 import struct
 from datetime import datetime, timedelta, timezone
+from hoymiles import HOYMILES_DEBUG_LOGGING
+
 try:
     from crcmod import mkCrcFun
 except ImportError:
@@ -17,6 +20,171 @@ import logging
 #f_crc8 = crcmod.mkCrcFun(0x101, initCrc=0, xorOut=0)
 f_crc_m = mkCrcFun(0x18005, initCrc=0xffff, xorOut=0)  # simplified to use minimal crc mod
 f_crc8 = mkCrcFun(0x101, initCrc=0, xorOut=0)
+
+
+class ResponseDecoderFactory:
+    """
+    Prepare payload decoder
+
+    :param bytes response: ESB response frame to decode
+    :param request: ESB request frame
+    :type request: bytes
+    :param inverter_ser: inverter serial
+    :type inverter_ser: str
+    :param time_rx: datetime when payload was received
+    :type time_rx: datetime
+    """
+    model = None
+    request = None
+    response = None
+    time_rx = None
+
+    def __init__(self, response, **params):
+        self.response = response
+
+        self.time_rx = params.get('time_rx', datetime.now(timezone.utc))
+
+        if 'request' in params:
+            self.request = params['request']
+        elif hasattr(response, 'request'):
+            self.request = response.request
+
+        if 'inverter_ser' in params:
+            self.inverter_ser = params['inverter_ser']
+            self.model = self.inverter_model
+
+    def unpack(self, fmt, base):
+        """
+        Data unpack helper
+
+        :param str fmt: struct format string
+        :param int base: unpack base position from self.response bytes
+        :return: unpacked values
+        :rtype: tuple
+        """
+        size = struct.calcsize(fmt)
+        return struct.unpack(fmt, self.response[base:base+size])
+
+    @property
+    def inverter_model(self):
+        """
+        Find decoder for inverter model
+
+        :return: suitable decoder model string
+        :rtype: str
+        :raises ValueError: on invalid inverter serial
+        :raises NotImplementedError: if inverter model can not be determined
+        """
+        if not self.inverter_ser:
+            raise ValueError('Inverter serial while decoding response')
+
+        ser_db = [
+            ('Hm300', r'^1121........'),
+            ('Hm600', r'^1141........'),
+            ('Hm1200', r'^1161........'),
+        ]
+        ser_str = str(self.inverter_ser)
+
+        model = None
+        for s_model, r_match in ser_db:
+            if re.match(r_match, ser_str):
+                model = s_model
+                break
+
+        if len(model):
+            return model
+        raise NotImplementedError('Model lookup failed for serial {ser_str}')
+
+    @property
+    def request_command(self):
+        """
+        Return requested command identifier byte
+
+        :return: hexlified command byte string
+        :rtype: str
+        """
+        r_code = self.request[10]
+        return f'{r_code:02x}'
+
+
+class ResponseDecoder(ResponseDecoderFactory):
+    """
+    Base response
+
+    :param bytes response: ESB frame response
+    """
+    def __init__(self, response, **params):
+        """Initialize ResponseDecoder"""
+        super().__init__(self, response, **params)
+        self.inv_name=params.get('inverter_name', None)
+        self.dtu_ser=params.get('dtu_ser', None)
+        self.strings=params.get('strings', None)
+
+    def decode(self):
+        """
+        Decode Payload
+
+        :return: payload decoder instance
+        :rtype: object
+        """
+        model = self.inverter_model
+        command = self.request_command
+
+        if HOYMILES_DEBUG_LOGGING:
+            if   command.upper() == '00':
+                model_desc = "Inverter Dev Inform Simple"
+            elif command.upper() == '01':
+                model_desc = "Firmware version / date"
+            elif command.upper() == '02':
+                model_desc = "Inverter generic events log"
+            elif command.upper() == '03':                         ## HardWareConfig
+                model_desc = "Hardware configuration"
+            elif command.upper() == '04':                         ## SimpleCalibrationPara
+                model_desc = "Simple Calibration Parameter"
+            elif command.upper() == '05':                         ## SystemConfigPara
+                model_desc = "Inverter generic SystemConfigPara"
+            elif command.upper() == '0B':                         ## 11 - RealTimeRunData_Debug
+                model_desc = "mirco-inverters status data"
+            elif command.upper() == '0C':                         ## 12 - RealTimeRunData_Reality
+                model_desc = "mirco-inverters status data"
+            elif command.upper() == '0D':                         ## 13 - RealTimeRunData_A_Phase
+                model_desc = "Real-Time Run Data A Phase "
+            elif command.upper() == '0E':                         ## 14 - RealTimeRunData_B_Phase
+                model_desc = "Real-Time Run Data B Phase "
+            elif command.upper() == '0F':                         ## 15 - RealTimeRunData_C_Phase
+                model_desc = "Real-Time Run Data C Phase "
+            elif command.upper() == '11':                         ## 17 - AlarmData
+                model_desc = "Inverter generic events log"
+            elif command.upper() == '12':                         ## 18 - AlarmUpdate
+                model_desc = "Inverter major events log"
+            elif command.upper() == '13':                         ## 19 - RecordData
+                model_desc = "Record Data"
+            elif command.upper() == '14':                         ## 20 - InternalData
+                model_desc = "Internal Data"
+            elif command.upper() == '15':                         ## 21 - GetLossRate
+                model_desc = "Get Loss Rate"
+            elif command.upper() == '1E':                         ## 30 - GetSelfCheckState
+                model_desc = "Get Self Check State"
+            elif command.upper() == 'FF':                         ## 255 - InitDataState
+                model_desc = "Initi Data State"
+
+            else:
+                model_desc = "event not configured - check ahoy script"
+            logging.info(f'model_decoder: {model}Decode{command.upper()} - {model_desc}')
+
+        model_decoders = __import__('hoymiles.decoders')  # todo lazy import of model decoders
+        if hasattr(model_decoders, f'{model}Decode{command.upper()}'):
+            device = getattr(model_decoders, f'{model}Decode{command.upper()}')
+        else:
+            device = getattr(model_decoders, 'DebugDecodeAny')
+
+        return device(self.response,
+                      time_rx=self.time_rx,
+                      inverter_ser=self.inverter_ser,
+                      inverter_name=self.inv_name,
+                      dtu_ser=self.dtu_ser,
+                      strings=self.strings
+                      )
 
 
 def g_unpack(s_fmt, s_buf):
@@ -75,14 +243,14 @@ class Response:
     dtu_ser = None
     response = None
 
-    def __init__(self, *args, **params):
+    def __init__(self, *args, **params):  # todo replace *args, **params
         """
         :param bytes response: response payload bytes
         """
         self.inverter_ser = params.get('inverter_ser', None)
         self.inverter_name = params.get('inverter_name', None)
         self.dtu_ser = params.get('dtu_ser', None)
-        self.response = args[0]
+        self.response = memoryview(args[0])  # todo use memview (done)
 
         strings = params.get('strings', None)
         self.inv_strings = strings

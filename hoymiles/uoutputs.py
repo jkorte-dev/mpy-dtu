@@ -21,53 +21,80 @@ class DisplayPlugin:
                'blank': bytearray([0x00] * 20)}
 
     def __init__(self, config, **params):
-        try:
-            from machine import Pin, I2C
-            from ssd1306 import SSD1306_I2C
+        def _text_scaled(screen, text, x, y, scale, character_width=8, character_height=8):
+            # temporary buffer for the text
+            width = character_width * len(text)
+            height = character_height
+            temp_buf = bytearray(width * height)
+            temp_fb = framebuf.FrameBuffer(temp_buf, width, height, framebuf.MONO_VLSB)
 
-        except ImportError as ex:
-            print('Install module with command: mpremote mip install ssd1306')
-            raise ex
+            # write text to the temporary framebuffer
+            temp_fb.text(text, 0, 0, 1)
+
+            # scale and write to the display
+            for i in range(width):
+                for j in range(height):
+                    pixel = temp_fb.pixel(i, j)
+                    if pixel:  # If the pixel is set, draw a larger rectangle
+                        screen.fill_rect(x + i * scale, y + j * scale, scale, scale, 1)
+
+        from machine import Pin, I2C, SPI, SoftSPI
 
         try:
-            i2c_num = config.get('i2c_num', 0)
-            scl_pin = config.get('scl_pin')  # no default
-            sda_pin = config.get('sda_pin')  # no default
-            display_width = config.get('display_width', 128)
-            display_height = config.get('display_height', 64)
-            if scl_pin and sda_pin:
-                i2c = I2C(i2c_num, scl=Pin(scl_pin), sda=Pin(sda_pin))
+            self.display_width = config.get('display_width', 128)
+            self.display_height = config.get('display_height', 64)
+
+            # type i2c-oled or spi-lcd
+            display_type = config.get('display_type', 'i2c-oled')
+            if display_type == 'i2c-oled':
+                try:
+                    from ssd1306 import SSD1306_I2C
+
+                except ImportError as ex:
+                    print('Install module with command: mpremote mip install ssd1306')
+                    raise ex
+
+                i2c_num = config.get('i2c_num', 0)
+                scl_pin = config.get('scl_pin')  # no default
+                sda_pin = config.get('sda_pin')  # no default
+                if scl_pin and sda_pin:
+                    i2c = I2C(i2c_num, scl=Pin(scl_pin), sda=Pin(sda_pin))
+                else:
+                    i2c = I2C(i2c_num)
+                print("Display i2c", i2c)
+
+                # extend display class
+                SSD1306_I2C.text_scaled = _text_scaled
+                self.display = SSD1306_I2C(self.display_width, self.display_height, i2c)
             else:
-                i2c = I2C(i2c_num)
-            print("Display i2c", i2c)
-            self.display_width = display_width
+                try:
+                    import ST7567 as lcd
 
-            # extend display class
-            def oled_text_scaled(oled, text, x, y, scale, character_width=8, character_height=8):
-                # temporary buffer for the text
-                width = character_width * len(text)
-                height = character_height
-                temp_buf = bytearray(width * height)
-                temp_fb = framebuf.FrameBuffer(temp_buf, width, height, framebuf.MONO_VLSB)
+                except ImportError as ex:
+                    print('Install module ST7567.py')
+                    raise ex
 
-                # write text to the temporary framebuffer
-                temp_fb.text(text, 0, 0, 1)
+                spi_num = config.get('spi_num', -1) # -1 use SoftSPI
+                sck_pin = config.get('sck_pin')
+                mosi_pin = config.get('mosi_pin')
+                miso_pin = config.get('miso_pin')
+                rst_pin = config.get('rst_pin')
+                dc_pin = config.get('dc_pin')
+                cs_pin = config.get('cs_pin')
+                # bl_pin = config.get('bl_pin')# backlight optional
+                if sck_pin and mosi_pin and cs_pin and dc_pin:
+                    if spi_num == -1:
+                        spi = SoftSPI(baudrate=100000, sck=Pin(sck_pin), mosi=Pin(mosi_pin), miso=Pin(miso_pin))
+                    else:
+                        spi = SPI(spi_num, baudrate=4000000, sck=Pin(sck_pin), mosi=Pin(mosi_pin))
+                    lcd.ST7567.text_scaled = _text_scaled
+                    self.display = lcd.ST7567(spi, cs=Pin(cs_pin), a0=Pin(dc_pin), rst=Pin(rst_pin), invX=True)
 
-                # scale and write to the display
-                for i in range(width):
-                    for j in range(height):
-                        pixel = temp_fb.pixel(i, j)
-                        if pixel:  # If the pixel is set, draw a larger rectangle
-                            oled.fill_rect(x + i * scale, y + j * scale, scale, scale, 1)
-
-            SSD1306_I2C.text_scaled = oled_text_scaled
-
-            self.display = SSD1306_I2C(self.display_width, display_height, i2c)
             self.display.fill(0)
             fscale = 2
             try:
                 import hoymiles.ulogo as ulogo
-                self.display.invert(1)
+                self.display.invert(display_type == 'i2c-oled')
                 ulogo.show_logo(self.display)
                 self.display.text_scaled("MPY", 60, 14 - self.font_size, fscale)
                 self.display.text_scaled("DTU", 60, 34 - self.font_size, fscale)
@@ -78,7 +105,7 @@ class DisplayPlugin:
                 gc.collect()
             except ImportError:
                 splash = "mpDTU"  # "Ahoy!"
-                self.display.text_scaled(splash, ((display_width - len(splash)*self.font_size*fscale) // 2), (display_height // 2) - self.font_size, fscale)
+                self.display.text_scaled(splash, ((self.display_width - len(splash)*self.font_size*fscale) // 2), (self.display_height // 2) - self.font_size, fscale)
             self.display.show()
 
         except Exception as e:
@@ -129,7 +156,7 @@ class DisplayPlugin:
             _scale = 2
             self.display.text_scaled(value, x - _scale*self.font_size, y, _scale)
         else:
-            self.display.fill_rect(x, y, self.display.width, self.font_size, 0)  # clear data on display
+            self.display.fill_rect(x, y, self.display_width, self.font_size, 0)  # clear data on display
             self.display.text(value, x, y, 1)
         self.display.show()
 
@@ -143,8 +170,8 @@ class DisplayPlugin:
             self.display.show()
 
     def _slot_pos(self, slot, x=None, y=None, length=None):
-        x = x if x else ((self.display.width - length*self.font_size) // 2) if length else 0
-        y = y if y else slot * (self.display.height // 5) + 8 if slot else 0
+        x = x if x else ((self.display_width - length*self.font_size) // 2) if length else 0
+        y = y if y else slot * (self.display_height // 5) + 8 if slot else 0
         return x, y
 
     def on_event(self, event):
