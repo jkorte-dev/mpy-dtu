@@ -57,7 +57,7 @@ class DisplayPlugin:
                 i2c_num = config.get('i2c_num', 0)
                 scl_pin = config.get('scl_pin')  # no default
                 sda_pin = config.get('sda_pin')  # no default
-                if scl_pin and sda_pin:
+                if scl_pin is not None and sda_pin is not None:
                     i2c = I2C(i2c_num, scl=Pin(scl_pin), sda=Pin(sda_pin))
                 else:
                     i2c = I2C(i2c_num)
@@ -74,7 +74,7 @@ class DisplayPlugin:
                     print('Install module ST7567.py')
                     raise ex
 
-                spi_num = config.get('spi_num', -1) # -1 use SoftSPI
+                spi_num = config.get('spi_num', -1)  # -1 use SoftSPI
                 sck_pin = config.get('sck_pin')
                 mosi_pin = config.get('mosi_pin')
                 miso_pin = config.get('miso_pin')
@@ -82,7 +82,8 @@ class DisplayPlugin:
                 dc_pin = config.get('dc_pin')
                 cs_pin = config.get('cs_pin')
                 # bl_pin = config.get('bl_pin')# backlight optional
-                if sck_pin and mosi_pin and cs_pin and dc_pin:
+                # use is not None because otherwise pin 0 will not be true
+                if sck_pin is not None and mosi_pin is not None and cs_pin is not None and dc_pin is not None:
                     if spi_num == -1:
                         spi = SoftSPI(baudrate=100000, sck=Pin(sck_pin), mosi=Pin(mosi_pin), miso=Pin(miso_pin))
                     else:
