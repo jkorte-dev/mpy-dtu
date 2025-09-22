@@ -13,8 +13,7 @@ from datetime import datetime, timezone
 
 from hoymiles import HOYMILES_DEBUG_LOGGING, HOYMILES_TRANSACTION_LOGGING, hexify_payload
 
-import decoders
-from hoymiles.decoders import ResponseDecoder, f_crc8, f_crc_m  # todo move f_crc_m , f_crc8 to global
+from hoymiles.decoders import StatusResponse, HardwareInfoResponse, ResponseDecoder, f_crc8, f_crc_m  # todo move f_crc_m , f_crc8 to global
 
 if sys.implementation.name != "micropython":
     def const(x): return x
@@ -606,7 +605,7 @@ class HoymilesDTU:
                     logging.info(f'Decoded: {result.to_dict()}')
 
                 # check decoder object for output
-                if isinstance(result, decoders.StatusResponse):
+                if isinstance(result, StatusResponse):
 
                     data = result.to_dict()
                     if data is not None and 'event_count' in data:
@@ -627,6 +626,6 @@ class HoymilesDTU:
                             self.status_handler(result, inverter)
 
                 # check decoder object for output
-                if isinstance(result, decoders.HardwareInfoResponse):
+                if isinstance(result, HardwareInfoResponse):
                     if self.info_handler:
                         self.info_handler(result, inverter)

@@ -115,7 +115,7 @@ class ResponseDecoder(ResponseDecoderFactory):
     """
     def __init__(self, response, **params):
         """Initialize ResponseDecoder"""
-        super().__init__(self, response, **params)
+        ResponseDecoderFactory.__init__(self, response, **params)
         self.inv_name=params.get('inverter_name', None)
         self.dtu_ser=params.get('dtu_ser', None)
         self.strings=params.get('strings', None)
@@ -172,7 +172,7 @@ class ResponseDecoder(ResponseDecoderFactory):
                 model_desc = "event not configured - check ahoy script"
             logging.info(f'model_decoder: {model}Decode{command.upper()} - {model_desc}')
 
-        model_decoders = __import__('hoymiles.decoders')  # todo lazy import of model decoders
+        model_decoders = __import__('hoymiles.decoders').decoders  # fix lazy import of model decoders
         if hasattr(model_decoders, f'{model}Decode{command.upper()}'):
             device = getattr(model_decoders, f'{model}Decode{command.upper()}')
         else:
@@ -250,7 +250,7 @@ class Response:
         self.inverter_ser = params.get('inverter_ser', None)
         self.inverter_name = params.get('inverter_name', None)
         self.dtu_ser = params.get('dtu_ser', None)
-        self.response = memoryview(args[0])  # todo use memview (done)
+        self.response = args[0]  # todo try memoryview(args[0])
 
         strings = params.get('strings', None)
         self.inv_strings = strings
