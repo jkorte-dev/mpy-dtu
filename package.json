@@ -5,6 +5,10 @@
       "github:jkorte-dev/mpy-dtu/hoymiles/__init__.py"
     ],
     [
+      "hoymiles/dtu.py",
+      "github:jkorte-dev/mpy-dtu/hoymiles/dtu.py"
+    ],
+    [
       "hoymiles/uoutputs.py",
       "github:jkorte-dev/mpy-dtu/hoymiles/uoutputs.py"
     ],

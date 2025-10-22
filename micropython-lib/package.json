@@ -11,6 +11,10 @@
     [
       "crcmod.mpy",
       "github:jkorte-dev/mpy-dtu/micropython-lib/crcmod.mpy"
+    ],
+    [
+      "ST7567.mpy",
+      "github:jkorte-dev/mpy-dtu/micropython-lib/ST7567.mpy"
     ]
   ],
   "deps": [
