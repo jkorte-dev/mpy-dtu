@@ -448,6 +448,7 @@ AlarmData = const(17)  # 0x11, Alarm data - all unsent alarms
 
 class HoymilesDTU:
     def __init__(self, ahoy_cfg, mqtt_clt=None, event_msg_idx=None, cmd_queue=None, status_handler=None, info_handler=None, event_handler=None):
+        global SunsetHandler
         if cmd_queue is None:
             cmd_queue = {}
         if event_msg_idx is None:
@@ -484,9 +485,12 @@ class HoymilesDTU:
             from hoymiles.sunsethandler import SunsetHandler
             self.sunset = SunsetHandler(sunset_cfg, self.mqtt_client)
             self.sunset.sun_status2mqtt(self.dtu_ser, self.dtu_name)
-        elif sunset_cfg and not sys.platform == 'linux':
-            # float precision is not sufficient to cal sunset/sunrise we use web api instead
-            from hoymiles.websunsethandler import SunsetHandler
+        elif sunset_cfg and sys.implementation.name == "micropython":
+            # use usunsethandler to calculate sun rise/set (requires sun_moon.py from peter hinch)
+            imp = __import__('hoymiles.' + sunset_cfg.get('mod', 'websunsethandler'), None, None, True, 0)
+            # print("using", imp)
+            v = getattr(imp, 'SunsetHandler')
+            globals()['SunsetHandler'] = v
             self.sunset = SunsetHandler(sunset_cfg, self.event_handler)
 
         self.loop_interval = ahoy_cfg.get('interval', 2)

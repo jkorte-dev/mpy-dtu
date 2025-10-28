@@ -270,9 +270,13 @@ romfs/hoymiles/uradio/__init__.py
 romfs/nrf24.mpy
 romfs/wlan.mpy
 ````
-2. deploy the romfs with `mpremote` (latest mpremote with romfs support required):
+2. make image with:
 
-`` mpremote romfs deploy ./romfs``
+``mpremote romfs --output dtu.romfs build dtu_romfs``
+
+3. deploy the romfs with `mpremote` (latest mpremote with romfs support required):
+
+`` mpremote romfs deploy dtu.romfs`` or skipping step 2 with ``mpremote romfs deploy dtu_romfs``
 
 additionally you need ``ahoy_cfg.py`` (the config file) , ``secrets.py`` for wifi setup and the main script ``hoymiles_mpy.py``
 
@@ -286,7 +290,7 @@ Modification made based on the original work from lumapu ahoy dtu:
 - extracted NFR24 communication code to new subpackage radio (Linux/CPython only)
 - NRF communication code for Micropython in subpackage uradio including driver ported from CircuitPython (Micropython only)
 - extracted sunset handler to module `sunsethandler.py`(Linux/CPython only)
-- added `websunsethandler.py` for Micropython because precision was not sufficient on Micropython to calculate sunset, at least not with the code tried.
+- added `websunsethandler.py` for Micropython because precision of used calculation was not sufficient on Micropython to calculate sunset, later added `usunsethandler.py` which uses sun set/rise calculation from Peter Hinch[11] .
 - added `uoutputs.py` for Micropython output plugins (Micropython only)
 - added `decoders/ucrcmod.py` minimal crc functions needed. Stripped down from [5] for Micropython (works on CPython as well)
 - used asyncio to be able to run webserver in parallel
@@ -311,7 +315,6 @@ TODOs
 - find out why polling inverter is so bad with rp2350
 - try async mqtt
 - remove logging to reduce size
-- try sunset calculation again with sunset lib from Peter Hinch [11]
 
 References
 ----------
