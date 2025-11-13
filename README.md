@@ -23,7 +23,7 @@ I haven't tried esp8266 and do not recommend it because of hardware limitations,
 Parts of the code is shared between CPython and Micropython. The code runs on Linux based Raspberry Pi hardware as well but this might change (Tested with Raspberry Pi Zero W so far).
 If you want to run this code on a Linux based Raspberry Pi SBC see README.md [1] for hardware setup.
 
-*The following documentation assumes that you are familiar with Micropython and it's tools `mpremote` [6] and `mpy-cross` [7]*
+*The following documentation assumes that you are familiar with Micropython and the tools `mpremote` [6] and `mpy-cross` [7]*
 
 Required Hardware Setup
 -----------------------
@@ -31,9 +31,9 @@ The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 
 Required Hardware:
 
-- ESP32x with Micropython (any esp32x is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6). RP2350 W basically worked but nrf communication wasn't good. esp32 and w600 worked only with console output due to lack of ram.
+- ESP32x with Micropython (any esp32x is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6). RP2350 W basically worked but nrf communication wasn't good. esp32 and w600 worked only with console output due to lack of ram (unless you use romfs, see instructions below.
 - nRF24L01+ Module
-- I2C OLED Display (128x64 ssd1306)
+- Optional: I2C OLED Display (128x64 ssd1306) or SPI LCD (128x64 st7567)
 - Hoymiles HM series solar inverter with panel ;-)
 - stable power supply for the microcontroller
 
@@ -143,6 +143,8 @@ mpremote cp hoymiles/uoutputs.py           :hoymiles/
 mpremote cp hoymiles/dtu.py                :hoymiles/
 mpremote cp hoymiles/ulogo.py              :hoymiles/    # optional 
 mpremote cp hoymiles/websunsethandler.py   :hoymiles/
+mpremote cp hoymiles/usunsethandler.py     :hoymiles/    # usunsethandler.py + sun_moon.py can replace websunsethandler.py 
+mpremote cp hoymiles/sun_moon.py           :hoymiles/    # usunsethandler.py + sun_moon.py can replace websunsethandler.py 
 mpremote cp hoymiles/uwebserver.py         :hoymiles/
 ```
 
@@ -216,6 +218,13 @@ If you enable suntimes support in ahoy_cfg.py e.g:
 
 the inverter will be polled only during daytime of given location and time.
 The web page will turn grey and a moon symbol is shown on the display during nighttime.
+Default sunset handler is `websunsethandler.py` which requires network connection and consumes a lot of ram.
+An experimental alternative is `usunsethandler.py` which needs `sun_moon.py` from Peter Hinch and a small config change (add `'mod': 'usunsethandler'`):
+
+```
+'sunset': {'disabled': False, 'latitude': 51.799118, 'longitude': 10.615523, 'altitude': 1142, 'mod': 'usunsethandler'}
+```
+
 
 Once you are happy with `hoymiles_exp.py` or `hoymiles_mpy.py` you can start your mpy dtu on boot by importing one of the scrips in `main.py`.
 E.g.
@@ -268,6 +277,8 @@ romfs/hoymiles/uwebserver.py
 romfs/hoymiles/decoders
 romfs/hoymiles/decoders/__init__.py
 romfs/hoymiles/websunsethandler.py
+romfs/hoymiles/usunsethandler.py
+romfs/hoymiles/sun_moon.py
 romfs/hoymiles/uradio
 romfs/hoymiles/uradio/__init__.py
 romfs/nrf24.mpy
