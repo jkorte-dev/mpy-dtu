@@ -7,6 +7,9 @@ A simple Micropython DTU for Hoymiles solar inverters. Live data from your inver
 ![display](images/mpy-dtu.png) 
 ![display](images/mpy-dtu-web-light-sm2.png)
 ![display](images/mpy-dtu-web-dark-sm2.png)
+![display](images/mpy-dtu-splash.png)
+![display](images/mpy-dtu-lcd.png)
+![display](images/mpy-dtu-esp32.png)
 
 It's a fun project for people like me who like hacking with micropython. 
 
