@@ -1,6 +1,6 @@
 ahoy_config = {'interval': 5,
                'transmit_retries': 5,
-               #'sunset': {'disabled': False, 'latitude': 51.799118, 'longitude': 10.615523, 'altitude': 1142},
+               #'sunset': {'disabled': False, 'latitude': 51.799118, 'longitude': 10.615523, 'altitude': 1142, 'mod': 'usunsethandler'}, # mod optional, default: mod=websunsethandler
                'nrf': [{'spi_num': 1, 'sck': 7, 'mosi': 11, 'miso': 9, 'cs': 12, 'ce': 16}],  # neu
                #'display': {'i2c_num': 0, 'scl_pin': 6, 'sda_pin': 5, 'display_width': 128, 'display_height': 64},
                #'display': {'display_type': 'spi_lcd', 'spi_num': -1, 'sck_pin': 18, 'mosi_pin': 23, 'miso_pin': 19, 'cs_pin': 5, 'dc_pin': 17, 'rst_pin': 16},

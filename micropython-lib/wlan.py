@@ -13,7 +13,7 @@ def do_connect(ssid=secrets['ssid'], psk=secrets['password'], restart=False):
     if not sta_if.isconnected():
         sta_if.active(True)
         print('connecting to network...')
-        if "ESP32" in os.uname().machine:
+        if "ESP32-C" in os.uname().machine:
             sta_if.config(txpower=8.5)  # wemos esp32c3 v1.0.0 and esp32c6
         #sta_if.scan()
         print(ubinascii.hexlify(sta_if.config('mac'), ':').decode())

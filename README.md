@@ -7,6 +7,9 @@ A simple Micropython DTU for Hoymiles solar inverters. Live data from your inver
 ![display](images/mpy-dtu.png) 
 ![display](images/mpy-dtu-web-light-sm2.png)
 ![display](images/mpy-dtu-web-dark-sm2.png)
+![display](images/mpy-dtu-splash.png)
+![display](images/mpy-dtu-lcd.png)
+![display](images/mpy-dtu-esp32.png)
 
 It's a fun project for people like me who like hacking with micropython. 
 
@@ -20,7 +23,7 @@ I haven't tried esp8266 and do not recommend it because of hardware limitations,
 Parts of the code is shared between CPython and Micropython. The code runs on Linux based Raspberry Pi hardware as well but this might change (Tested with Raspberry Pi Zero W so far).
 If you want to run this code on a Linux based Raspberry Pi SBC see README.md [1] for hardware setup.
 
-*The following documentation assumes that you are familiar with Micropython and it's tools `mpremote` [6] and `mpy-cross` [7]*
+*The following documentation assumes that you are familiar with Micropython and the tools `mpremote` [6] and `mpy-cross` [7]*
 
 Required Hardware Setup
 -----------------------
@@ -28,9 +31,9 @@ The hardware setup on microcontrollers is the same as with regular Ahoy-DTU. [2]
 
 Required Hardware:
 
-- ESP32x with Micropython (any esp32x is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6). RP2350 W basically worked but nrf communication wasn't good. esp32 and w600 worked only with console output due to lack of ram.
+- ESP32x with Micropython (any esp32x is OK e.g. esp32s2, esp32s3, esp32c3, esp32c6). RP2350 W basically worked but nrf communication wasn't good. esp32 and w600 worked only with console output due to lack of ram (unless you use romfs, see instructions below.
 - nRF24L01+ Module
-- I2C OLED Display (128x64 ssd1306)
+- Optional: I2C OLED Display (128x64 ssd1306) or SPI LCD (128x64 st7567)
 - Hoymiles HM series solar inverter with panel ;-)
 - stable power supply for the microcontroller
 
@@ -50,6 +53,7 @@ Dependencies for output plugins:
 mpremote mip install umqtt.simple
 mpremote mip install umqtt.robust
 mpremote mip install ssd1306
+mpremote cp micropython-lib/ST7567.mpy :lib/ # optional for ST7567 LCD display
 ```
 
 An alternative way to install these dependencies is:
@@ -136,8 +140,11 @@ mpremote cp hoymiles/uradio/__init__.py  :hoymiles/uradio/
 mpremote cp hoymiles/uradio/nrf24.py  :hoymiles/uradio/
 
 mpremote cp hoymiles/uoutputs.py           :hoymiles/
+mpremote cp hoymiles/dtu.py                :hoymiles/
 mpremote cp hoymiles/ulogo.py              :hoymiles/    # optional 
 mpremote cp hoymiles/websunsethandler.py   :hoymiles/
+mpremote cp hoymiles/usunsethandler.py     :hoymiles/    # usunsethandler.py + sun_moon.py can replace websunsethandler.py 
+mpremote cp hoymiles/sun_moon.py           :hoymiles/    # usunsethandler.py + sun_moon.py can replace websunsethandler.py 
 mpremote cp hoymiles/uwebserver.py         :hoymiles/
 ```
 
@@ -211,6 +218,13 @@ If you enable suntimes support in ahoy_cfg.py e.g:
 
 the inverter will be polled only during daytime of given location and time.
 The web page will turn grey and a moon symbol is shown on the display during nighttime.
+Default sunset handler is `websunsethandler.py` which requires network connection and consumes a lot of ram.
+An experimental alternative is `usunsethandler.py` which needs `sun_moon.py` from Peter Hinch and a small config change (add `'mod': 'usunsethandler'`):
+
+```
+'sunset': {'disabled': False, 'latitude': 51.799118, 'longitude': 10.615523, 'altitude': 1142, 'mod': 'usunsethandler'}
+```
+
 
 Once you are happy with `hoymiles_exp.py` or `hoymiles_mpy.py` you can start your mpy dtu on boot by importing one of the scrips in `main.py`.
 E.g.
@@ -238,15 +252,59 @@ because bad designed power supplies may interfere with the nrf24l01 module.
 *Only Hoymiles HM series supported. The communication with the inverter is readonly*
 
 
+Running on ESP32 with romfs
+----------------------------
+
+I had success running the fully featured version of the dtu on esp32 with micropython 1.26.1. 
+This requires a custom build with romfs [9] / [10] support to deploy the ``hoymiles`` module in a romfs partition.
+Once you have flashed micropython with romfs support you can try.
+
+1. prepare a directory ``./romfs`` with the following files:
+
+````
+romfs/logging.mpy
+romfs/ST7567.mpy
+romfs/ssd1306.mpy
+romfs/datetime.mpy
+romfs/crcmod.mpy
+romfs/hoymiles
+romfs/hoymiles/dtu.py
+romfs/hoymiles/ulogo.py
+romfs/hoymiles/uoutputs.py
+romfs/hoymiles/__init__.py
+romfs/hoymiles/uoutputs.py
+romfs/hoymiles/uwebserver.py
+romfs/hoymiles/decoders
+romfs/hoymiles/decoders/__init__.py
+romfs/hoymiles/websunsethandler.py
+romfs/hoymiles/usunsethandler.py
+romfs/hoymiles/sun_moon.py
+romfs/hoymiles/uradio
+romfs/hoymiles/uradio/__init__.py
+romfs/nrf24.mpy
+romfs/wlan.mpy
+````
+2. make image with:
+
+``mpremote romfs --output dtu.romfs build dtu_romfs``
+
+3. deploy the romfs with `mpremote` (latest mpremote with romfs support required):
+
+`` mpremote romfs deploy dtu.romfs`` or skipping step 2 with ``mpremote romfs deploy dtu_romfs``
+
+additionally you need ``ahoy_cfg.py`` (the config file) , ``secrets.py`` for wifi setup and the main script ``hoymiles_mpy.py``
 
 Modifications
 -------------
 
+Modification made based on the original work from lumapu ahoy dtu:
+
 - moved all Linux/CPython specific code to `__main__.py`. All shared code to `hoymiles/__init__.py` and `decoders/__init__.py`
+- extracted actual DTU code to module dtu.py
 - extracted NFR24 communication code to new subpackage radio (Linux/CPython only)
 - NRF communication code for Micropython in subpackage uradio including driver ported from CircuitPython (Micropython only)
 - extracted sunset handler to module `sunsethandler.py`(Linux/CPython only)
-- added `websunsethandler.py` for Micropython because precision is not sufficient on Micropython to calculate sunset
+- added `websunsethandler.py` for Micropython because precision of used calculation was not sufficient on Micropython to calculate sunset, later added `usunsethandler.py` which uses sun set/rise calculation from Peter Hinch[11] .
 - added `uoutputs.py` for Micropython output plugins (Micropython only)
 - added `decoders/ucrcmod.py` minimal crc functions needed. Stripped down from [5] for Micropython (works on CPython as well)
 - used asyncio to be able to run webserver in parallel
@@ -258,18 +316,19 @@ Outputs
 
 Output plugins so far:
 
-- SSD1306 I2C display 
+- SSD1306 I2C display
+- ST7567 SPI display
 - MQTT
 - Blink LED / WS2812 NeoPixel
-- Web Gui
+- Web GUI
 
 TODOs
 ------
 - make HoymilesNRF.receive() non-blocking
 - yield more time for async webserver
 - find out why polling inverter is so bad with rp2350
-- try async mqtt 
-- output on color spi display
+- try async mqtt
+- remove logging to reduce size
 
 References
 ----------
@@ -283,3 +342,6 @@ References
 - [6] https://docs.micropython.org/en/latest/reference/mpremote.html
 - [7] https://docs.micropython.org/en/latest/reference/mpyfiles.html
 - [8] https://docs.micropython.org/en/latest/reference/packages.html
+- [9] https://github.com/micropython/micropython/wiki/Board-profile-configuration-for-RomFS
+- [10] https://github.com/orgs/micropython/discussions/17873
+- [11] https://github.com/peterhinch/micropython-samples/tree/master/astronomy

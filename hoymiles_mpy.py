@@ -4,6 +4,7 @@ import asyncio
 import hoymiles.uoutputs
 import gc
 
+use_network = True
 use_wdt = True
 # ahoy_config['sunset'] = {'disabled': True}
 # ahoy_config['interval'] = 15
@@ -18,6 +19,9 @@ if use_wdt:
 
 
 def init_network_time():
+    if not use_network:
+        ahoy_config['sunset'] = {'disabled': True}
+        return
     print('init_network_time')
     import wlan
     import time
